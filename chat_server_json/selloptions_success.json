@@ -1,0 +1,96 @@
+{
+   "error":false,
+   "message":"",
+   "data":[
+      {
+         "roomOption":"1",
+         "propertyCode":"BHS",
+         "totalPrice":"SGD 796.00",
+         "minPrice":"SGD 199.00",
+         "avgPrice":"SGD 199.00",
+         "isTaxIncluded":true,
+         "room":"Deluxe Triple Room - 1 Queen+1 Single Bed (26sqm) - Our Triple Rooms are the perfect choice for families or friends travelling in groups. These rooms comes with 1 queen and 1 single bed, and are ideal for up to 3 persons Min 3 Nights - Minimum 3 Nights ",
+         "roomImg":[
+            {
+               "imageURL":"/images/BAYHOTEL/Product/747/bth1.jpg",
+               "imageDesc":null,
+               "imageType":"PRODIMAGE"
+            },
+            {
+               "imageURL":"/images/BAYHOTEL/Product/747/Deluxe Triple Room.jpg",
+               "imageDesc":null,
+               "imageType":"PRODIMAGE"
+            }
+         ],
+         "maxOccupancy":3
+      },
+      {
+         "roomOption":"2",
+         "propertyCode":"BHS",
+         "totalPrice":"SGD 796.00",
+         "minPrice":"SGD 199.00",
+         "avgPrice":"SGD 199.00",
+         "isTaxIncluded":true,
+         "room":"Deluxe Room King Bed (25sqm) - Our Deluxe King Rooms, well-equipped with all the functional comforts, offer you panoramic vistas over the swimming pool and the tranquil, hilly locale. You can recline in the plush leather armchair or luxe bedding to soak up the splendid scenary. Min 3 Nights - Minimum 3 Nights ",
+         "roomImg":[
+            {
+               "imageURL":"/images/BAYHOTEL/Product/749/Deluxe King.jpg",
+               "imageDesc":null,
+               "imageType":"PRODIMAGE"
+            }
+         ],
+         "maxOccupancy":5
+      },
+      {
+         "roomOption":"3",
+         "propertyCode":"BHS",
+         "totalPrice":"SGD 796.00",
+         "minPrice":"SGD 199.00",
+         "avgPrice":"SGD 199.00",
+         "isTaxIncluded":true,
+         "room":"Deluxe Room Queen Bed (23sqm) - This is seaview room overlooking to Andaman sea features a King bed with the comtemporary designed.Room size may vary, starting from 25 sq. m./215 sq. ft. Sleeps up to 2 people. Min 3 Nights - Minimum 3 Nights ",
+         "roomImg":[
+            {
+               "imageURL":"/images/BAYHOTEL/Product/750/Deluxe Room 23sqm.jpg",
+               "imageDesc":null,
+               "imageType":"PRODIMAGE"
+            }
+         ],
+         "maxOccupancy":5
+      },
+      {
+         "roomOption":"4",
+         "propertyCode":"BHS",
+         "totalPrice":"SGD 2400.00",
+         "minPrice":"SGD 600.00",
+         "avgPrice":"SGD 600.00",
+         "isTaxIncluded":true,
+         "room":"Deluxe Room King Bed (25sqm) - Our Deluxe King Rooms, well-equipped with all the functional comforts, offer you panoramic vistas over the swimming pool and the tranquil, hilly locale. You can recline in the plush leather armchair or luxe bedding to soak up the splendid scenary. Annual Promo EXC - Annual Promo ",
+         "roomImg":[
+            {
+               "imageURL":"/images/BAYHOTEL/Product/749/Deluxe King.jpg",
+               "imageDesc":null,
+               "imageType":"PRODIMAGE"
+            }
+         ],
+         "maxOccupancy":5
+      },
+      {
+         "roomOption":"5",
+         "propertyCode":"BHS",
+         "totalPrice":"SGD 2400.00",
+         "minPrice":"SGD 600.00",
+         "avgPrice":"SGD 600.00",
+         "isTaxIncluded":true,
+         "room":"Deluxe Room Queen Bed (23sqm) - This is seaview room overlooking to Andaman sea features a King bed with the comtemporary designed.Room size may vary, starting from 25 sq. m./215 sq. ft. Sleeps up to 2 people. Annual Promo EXC - Annual Promo ",
+         "roomImg":[
+            {
+               "imageURL":"/images/BAYHOTEL/Product/750/Deluxe Room 23sqm.jpg",
+               "imageDesc":null,
+               "imageType":"PRODIMAGE"
+            }
+         ],
+         "maxOccupancy":5
+      }
+   ]
+}
