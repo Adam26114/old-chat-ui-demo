@@ -38,13 +38,12 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
     useEffect(() => {
         if (!app_key || !customer_id) throw new Error("Unknown client.");
         let active = true;
-        let bookingToken = x_auth_token;
         const workerConfig = { app_key, customer_id, property_code, booking_link, login_link, payment_link };
         const generateAuthToken = () => {
             const now = Date.now() / 1000;
             return KJUR.jws.JWS.sign("HS256", JSON.stringify({ alg: "HS256", typ: "JWT" }), JSON.stringify({
                 nbf: now, iat: now, exp: now + 3600,
-                data: { ...workerConfig, x_auth_token: bookingToken },
+                data: { ...workerConfig, x_auth_token },
             }), import.meta.env.VITE_CHAT_SERVER_KEY);
         };
         const clearSession = () => {
@@ -58,7 +57,7 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         if (authToken) {
             try {
                 const decoded = jwtDecode<IJwtPayload>(authToken);
-                const tokenData = { ...workerConfig, x_auth_token: bookingToken };
+                const tokenData = { ...workerConfig, x_auth_token };
                 if (Date.now() / 1000 >= (decoded.exp || 0) || Object.entries(tokenData).some(([key, value]) => decoded.data?.[key] !== value)) {
                     clearSession();
                     authToken = null;
@@ -155,23 +154,6 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
             }
         };
         connection.start();
-        const login = () => connection.postMessage({ type: "login" });
-        const logout = () => {
-            clearSession();
-            connection.postMessage({ type: "logout" });
-        };
-        const auth = (event: Event) => {
-            bookingToken = (event as CustomEvent<{ auth_token?: string }>).detail?.auth_token || "";
-            // Refresh the worker JWT as well so login/chat use the new booking token.
-            void restart();
-        };
-        const hostExpired = () => expire();
-        const listeners: [string, EventListener][] = import.meta.env.MODE.includes("myroompass")
-            ? [["myroompass/login", login], ["myroompass/logout", logout]]
-            : import.meta.env.MODE.includes("wbe2")
-                ? [["qikres/auth", auth], ["qikres/login", login], ["qikres/logout", logout], ["qikres/sessionExpired", hostExpired]]
-                : [];
-        listeners.forEach(([name, listener]) => document.addEventListener(name, listener));
         const onStorage = (event: StorageEvent) => {
             if (event.key === "chat_history" && event.newValue === null) {
                 setMessages([]);
@@ -181,7 +163,6 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         window.addEventListener("storage", onStorage);
         return () => {
             active = false;
-            listeners.forEach(([name, listener]) => document.removeEventListener(name, listener));
             window.removeEventListener("storage", onStorage);
             connection.onmessage = null;
             connection.postMessage({ type: "detach" });

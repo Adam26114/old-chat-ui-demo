@@ -12,6 +12,6 @@ export default defineConfig({
     ],
     webServer: [
         { command: "node tests/server.mjs", url: "http://127.0.0.1:4181/health", reuseExistingServer: false },
-        { command: "npx vite --config tests/vite.config.ts --mode development.ui --host 127.0.0.1 --port 4180 --strictPort", url: "http://127.0.0.1:4180/tests/fixtures/index.html", reuseExistingServer: false },
+        { command: "npx vite --config tests/vite.config.ts --mode development.wbe --host 127.0.0.1 --port 4180 --strictPort", url: "http://127.0.0.1:4180/tests/fixtures/index.html", reuseExistingServer: false },
     ],
 });

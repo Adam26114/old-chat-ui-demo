@@ -131,15 +131,6 @@ const initSocket = () => {
         _socket.disconnect();
     });
 
-    _socket.on("logon", (message) => {
-        ports.forEach((_port) => {
-            _port.postMessage({
-                type: "logon",
-                message
-            });
-        });
-    });
-
     _socket.on("logout", (message) => {
         ports.forEach((_port) => {
             _port.postMessage({
@@ -206,22 +197,6 @@ const start = (port:(MessagePort|Worker)) => {
                     }
                 });
 
-                break;
-
-            case "login":
-                socket.emit("login", JSON.stringify({
-                    x_auth_token
-                }));
-
-                //no need to broadcast to others, we only need to login once to backend
-                break;
-
-            case "logout":
-                socket.emit("logout", JSON.stringify({
-                    x_auth_token
-                }));
-
-                //no need to broadcast to others, we only need to logout once to backend
                 break;
         }
     };

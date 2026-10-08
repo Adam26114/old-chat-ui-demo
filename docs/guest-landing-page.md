@@ -7,11 +7,12 @@ reuse the local shadcn Button component.
 
 ## Run and deploy
 
-Run the existing `npm run dev:wbe` or `npm run dev:wbe2` command for the local
-guest page. `npm run build:landing` builds a standalone page into `dist/landing/`
-using `production.wbe2`; `npm run preview:landing` serves that output. Deploy the
-whole directory, including its assets and worker. The six embeddable widget
-builds are independent and retain their original commands and output locations.
+Run `npm run dev:wbe` for the local guest page. `npm run build:landing` builds
+a standalone page into `dist/landing/` using `production.wbe`;
+`npm run preview:landing` serves that output. Deploy the
+whole directory, including its assets, SVG favicon, and worker. The WBE widget
+builds are independent: `build:production` writes `dist/production/wbe/`, and
+`build:staging` writes `dist/staging/wbe/`.
 
 The page passes the same environment options and `x_auth_token` query parameter
 to the widget. Supply the existing client identifiers, server URL, and signing
@@ -48,22 +49,19 @@ and [Singapore Cable Car](https://mountfaberleisure.com/attraction/singapore-cab
 
 ![Mobile guest page](guest-page-mobile.png)
 
-## Validation
-
-- Typechecking and linting passed.
-- All 36 Chromium/WebKit browser checks passed (10 page checks, 26 widget checks).
-- The six widget builds and independent landing build passed.
-- Desktop/mobile previews and the current local app were visually inspected.
-- Standards review: no blocking findings. The private launcher selector is an
-  intentional internal dependency guarded by page behavior checks.
-- Spec review: no actionable gaps.
+## Regression coverage
 
 The browser fixture uses the actual guest page and widget with controlled local
-Socket.IO configuration. Page checks cover section navigation, mobile menu
-Escape/focus, booking in a new tab, booking fallback, repeated concierge actions,
+Socket.IO configuration. The existing suite contains 36 Chromium/WebKit checks
+(10 page checks, 26 widget checks). Page checks cover section navigation, mobile
+menu Escape/focus, booking in a new tab, booking fallback, repeated concierge actions,
 draft retention, missing chat configuration, and 320px/390px/640px page bounds.
 The original widget checks continue to cover messaging, copy, history, restart,
 expiry, responsive sizing, and host-style isolation.
+
+Page actions open the widget through its private launcher selector, guarded by
+page behavior checks. Run the checks and build commands listed in the README
+after changing this integration.
 
 Physical mobile keyboard behavior and live booking/backend transactions still
 require a device or integration check. The illustration and room concepts need

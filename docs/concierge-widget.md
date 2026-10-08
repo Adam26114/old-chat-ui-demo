@@ -33,25 +33,24 @@ page uses `viewport-fit=cover`; the widget leaves host metadata under host contr
 
 ![Copy control on hover](chat-copy-control.png)
 
-## Validation
+## Regression coverage
 
-- `npm run typecheck`: passed.
-- `npm run lint`: passed.
-- `npm run test:ui`: 26 checks passed across Chromium and WebKit.
-- `npm run build`: all six production/staging variants passed.
-- Standards review: no blocking issues.
-- Spec review: no remaining actionable gaps.
-
-Browser checks used the real widget/runtime/worker with a controlled local
-Socket.IO fixture. They covered starter questions, booking, reset/expiry,
+The 26 existing widget checks across Chromium and WebKit use the real
+widget/runtime/worker with a controlled local Socket.IO fixture. They cover
+starter questions, booking, reset/expiry,
 reconnecting, scroll-to-latest, empty restart, history restoration, errors,
 Markdown, multiline input, copy (Chromium), mobile bounds, focus, reduced motion,
 and host-style isolation. Mobile checks require full coverage at 320px, 390px,
 and 640px, plus touch-device landscape and shrinking viewports. The
-visualViewport-unavailable regression also simulated a viewport change without
+visualViewport-unavailable regression simulates a viewport change without
 a window resize event. Copy screenshots were inspected in resting, hover,
-keyboard-focus, and copied states.
+keyboard-focus, and copied states during the original refresh.
+
+Run `npm run test:ui` for the complete suite, including the 10 guest-page checks.
+The WBE widget builds use `npm run build:production` and
+`npm run build:staging`; `npm run build` runs both with typechecking.
 
 Physical mobile Safari/Chrome software-keyboard behavior, the live backend, and
 deployment on a real host site were not verified. Public props, module exports,
-server payloads, storage keys, and host events retain their existing contracts.
+server authentication/chat payloads, storage keys, server logout/expiry, and
+bubbling `qikres/chatbot/<trigger>` events retain their existing contracts.

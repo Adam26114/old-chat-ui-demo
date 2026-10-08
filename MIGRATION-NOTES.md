@@ -2,15 +2,14 @@
 
 ## Delivered
 
-`ChatBot.tsx` uses assistant-ui with local shadcn Button and Avatar components. It retains the original default component export, named React/ReactDOM exports, prop names, library entry point, environment modes, and backend settings.
+`ChatBot.tsx` uses assistant-ui with local shadcn Button, Avatar, and AlertDialog
+components. The WBE-only project retains the default component export, named
+React/ReactDOM exports, prop names, library entry point, and backend settings.
 
 UI features: floating launcher, responsive panel, plain user bubbles, Markdown assistant responses with GFM tables and links, copy-message button, typing indicator, automatic scrolling and scroll-to-bottom control, connection status, session restart, keyboard submission, and Escape-to-close with focus restoration.
 
-Screenshots captured during the local browser test:
-
-![Desktop widget](docs/chat-ui-desktop.png)
-
-![Mobile widget](docs/chat-ui-mobile.png)
+See [`docs/concierge-widget.md`](docs/concierge-widget.md) for widget previews
+and [`docs/guest-landing-page.md`](docs/guest-landing-page.md) for the guest page.
 
 ## Integration changes
 
@@ -22,25 +21,33 @@ Small worker lifecycle changes support the migrated UI:
 - A newly attached tab receives the current connection/authentication state.
 - A detached widget removes its port.
 - Restart reconnects an expired socket and clears the previous authentication polling timer.
-- Authentication `success` informs the UI, including after a refreshed booking token.
-- WBE2 `qikres/auth` updates the JWT used by the worker for later chat and login requests.
+- Authentication `success` informs the UI.
 
-Minor existing lint issues in the demo and Vite configuration were corrected. No server URLs, keys, or supplied environment file contents were changed.
+The current cleanup removes unused integration variants, their host auth
+listeners and outbound worker messages, Recoil state infrastructure, legacy
+chat CSS, starter assets, and unreferenced server samples. The WBE
+`x_auth_token` prop, JWT fields, authentication/chat payloads, server logout and
+expiry, trigger events, storage, and worker fallback remain supported.
 
-## Validation completed
+## Verification
 
-- `npm run typecheck`: passed.
-- `npm run lint`: passed for the entire project.
-- `npm run build`: all six existing production/staging builds passed.
-- Browser tests using the actual widget, actual worker, and a controlled local Socket.IO backend: greeting, send/receive, typing state, Markdown tables/links, errors, local history restoration, tab synchronization, one-time broadcast persistence, session expiry, restart after socket disconnect, host trigger events, booking-token refresh, login payload, mobile panel bounds, Escape/focus behavior, and reload restoration passed.
-- Dedicated Worker fallback without native SharedWorker: send/receive passed.
-- Browser test of the compiled production ES module: default and named exports, stylesheet, production worker asset loading, signed authentication, chat send/receive, and host-page CSS isolation passed.
-- No page errors were reported by those successful browser tests. Desktop and mobile screenshots were inspected.
+The WBE-only cleanup passed typechecking, linting, all 36 Chromium/WebKit
+checks, both WBE widget builds, and the standalone landing build. The landing
+JavaScript bundle decreased from 1,120.56 kB to 1,060.26 kB.
 
-The tests used a controlled local backend. The live backend and a deployed WordPress installation were not contacted, so production credentials, server behavior, CSP settings, and live hotel-specific booking flows still need your normal deployment check.
+Run typechecking, linting, `npm run test:ui`, `npm run build`, and
+`npm run build:landing`. The existing suite contains 36 Chromium/WebKit checks
+using the actual guest page, widget, worker, and a controlled Socket.IO backend.
+It covers messaging, Markdown, errors, restored history, expiry/restart,
+viewport bounds, keyboard/focus behavior, guest-page navigation, booking,
+draft retention, and host-style isolation.
 
-## Package contents
+Local fixtures do not validate production credentials, deployed host CSP, or
+live booking/backend transactions. Check those in the target integration.
 
-The ZIP contains the source, lockfile, original environment files, documentation, screenshots, and all six refreshed builds. It excludes installed node_modules, the old .git_ directory, macOS metadata, and the temporary local test server/configuration. Run `npm install` after extracting it.
+## Deployment
 
-Keep `style.css` and the corresponding `assets/worker-*.js` alongside `chatbot.es.js` when updating the existing site integration.
+WBE widget builds are in `dist/production/wbe/` and `dist/staging/wbe/`.
+Keep `style.css` and the corresponding `assets/worker-*.js` alongside
+`chatbot.es.js`. The standalone landing build uses `production.wbe` and is
+deployed as the complete `dist/landing/` directory.
