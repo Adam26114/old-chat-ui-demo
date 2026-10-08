@@ -8,7 +8,7 @@ Extract this project, open a terminal in the `frontend` folder, then run:
 
 ```bash
 npm install
-npm run dev:wbe2
+npm run dev:wbe
 ```
 
 Use the URL printed by Vite. Choose the script matching your integration:
