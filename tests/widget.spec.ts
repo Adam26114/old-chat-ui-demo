@@ -53,6 +53,7 @@ test("phone sizing follows dynamic viewport units when visualViewport and resize
     await openChat(page);
     await page.setViewportSize({ width: 390, height: 450 });
     await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeInViewport();
+    await expect.poll(() => page.getByRole("region", { name: "Hotel guest assistant" }).boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 450 });
 });
 
 test("starter questions remain after the greeting and can be edited before sending", async ({ page }, testInfo) => {
@@ -78,8 +79,7 @@ test("the phone panel uses the screen without focusing the keyboard and preserve
     await openChat(page);
     await expect(page.getByRole("button", { name: "Close chat", exact: true })).toBeFocused();
     const panel = page.getByRole("region", { name: "Hotel guest assistant" });
-    const bounds = await panel.boundingBox();
-    expect(bounds?.height).toBeGreaterThan(800);
+    await expect.poll(() => panel.boundingBox()).toEqual({ x: 0, y: 0, width: 390, height: 844 });
     await panel.screenshot({ path: testInfo.outputPath("widget-mobile.png") });
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.fill("Keep this question");
@@ -117,14 +117,26 @@ test("no booking shortcut is invented when a URL is not configured", async ({ pa
     await expect(page.getByRole("link", { name: "Book a room", exact: true })).toHaveCount(0);
 });
 
-test("errors, multiline input, restored history, and host styles remain usable", async ({ page, context, browserName }) => {
+test("errors, multiline input, restored history, and host styles remain usable", async ({ page, context, browserName }, testInfo) => {
     await openChat(page);
     await expect(page.getByRole("button", { name: "Hotel page button" })).toHaveCSS("background-color", "rgb(255, 192, 203)");
     await expect(page.getByRole("button", { name: "Restart chat", exact: true })).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
     if (browserName === "chromium") {
         await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-        await page.getByRole("button", { name: "Copy message", exact: true }).click();
+        const copyControl = page.getByRole("button", { name: "Copy message", exact: true });
+        const message = page.locator('[data-message-role="assistant"]').first();
+        await page.mouse.move(0, 0);
+        await message.screenshot({ path: testInfo.outputPath("copy-rest.png") });
+        await copyControl.hover();
+        await expect(copyControl).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+        await message.screenshot({ path: testInfo.outputPath("copy-hover.png") });
+        await page.mouse.move(0, 0);
+        await page.keyboard.press("Tab");
+        await copyControl.focus();
+        await message.screenshot({ path: testInfo.outputPath("copy-keyboard-focus.png") });
+        await copyControl.click();
         await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("Welcome to");
+        await message.screenshot({ path: testInfo.outputPath("copy-copied.png") });
     }
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.fill("Show an error");
@@ -151,11 +163,25 @@ test("small screens keep actions inside the panel and respect reduced motion", a
         await page.setViewportSize({ width, height: 568 });
         await expect(page.getByRole("button", { name: "Close chat", exact: true })).toBeInViewport();
         await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeInViewport();
-        const bounds = await panel.boundingBox();
-        expect(bounds?.x).toBeGreaterThanOrEqual(8);
-        expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width - 8);
+        await expect.poll(() => panel.boundingBox()).toEqual({ x: 0, y: 0, width, height: 568 });
     }
     await expect(page.getByRole("button", { name: "Rooms & reservations", exact: true })).toHaveCSS("transition-duration", "0s");
+});
+
+test.describe("touch-device landscape", () => {
+    test.use({ hasTouch: true, viewport: { width: 844, height: 390 } });
+
+    test("chat fills the phone landscape viewport and restores the launcher on close", async ({ page }, testInfo) => {
+        await openChat(page);
+        const panel = page.getByRole("region", { name: "Hotel guest assistant" });
+        await expect.poll(() => panel.boundingBox()).toEqual({ x: 0, y: 0, width: 844, height: 390 });
+        await expect(page.getByRole("button", { name: "Close chat", exact: true })).toBeFocused();
+        await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeInViewport();
+        await expect(page.getByRole("button", { name: "Hide chat", exact: true })).toHaveCount(0);
+        await panel.screenshot({ path: testInfo.outputPath("widget-landscape.png") });
+        await page.getByRole("button", { name: "Close chat", exact: true }).click();
+        await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeFocused();
+    });
 });
 
 test("restart cancellation keeps the conversation and draft, while confirmation clears them", async ({ page }) => {

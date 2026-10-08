@@ -82,9 +82,15 @@ greeting. A configured `booking_link` adds a Book a room shortcut that opens in 
 new tab. Restarting a conversation with history requires confirmation, including
 the restart link shown after expiry.
 
-On screens up to 640px wide, the open panel fills the visible viewport with
-safe-area margins. Opening on phones focuses the close control; the keyboard
-opens when the guest chooses to type. Closing or resizing retains the draft.
+The copy control uses a small outlined icon with a compact mint hover/focus tile
+inside its larger touch target, spaced below the message bubble.
+
+On screens up to 640px wide, and touch-device landscape layouts up to 1024px wide
+and 500px high, the open panel fills the visible viewport edge to edge. Safe-area
+padding sits inside the panel. Opening on phones focuses the close control; the
+keyboard opens when the guest chooses to type. Closing or resizing retains the
+draft. The local demo uses `viewport-fit=cover`; embedded host pages control
+their own viewport metadata.
 
 ## UI regression checks
 
