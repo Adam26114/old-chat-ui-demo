@@ -10,8 +10,10 @@
     "build": "tsc && npm run build:production && npm run build:staging",
     "build:production": "vite build --mode production.wbe && vite build --mode production.wbe2 && vite build --mode production.myroompass",
     "build:staging": "vite build --mode staging.wbe && vite build --mode staging.wbe2 && vite build --mode staging.myroompass",
+    "build:landing": "tsc && vite build --config vite.landing.config.ts --mode production.wbe2",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
+    "preview:landing": "vite preview --config vite.landing.config.ts",
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test"
   },

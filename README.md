@@ -13,6 +13,11 @@ npm run dev:wbe
 
 Use the URL printed by Vite. Choose the script matching your integration:
 
+The local app now opens a Bay Hotel guest landing page with rooms, amenities,
+neighbourhood highlights, booking, and the existing floating concierge. The
+green-and-ivory page uses illustrative artwork and demo branding. See
+[`docs/guest-landing-page.md`](docs/guest-landing-page.md) for previews and setup.
+
 | Integration | Command |
 | --- | --- |
 | WBE | `npm run dev:wbe` |
@@ -37,6 +42,12 @@ Each build remains in `dist/<production|staging>/<wbe|wbe2|myroompass>/` and inc
 - `chatbot.es.js`: the embeddable widget module.
 - `style.css`: the widget styles; load this alongside the module.
 - `assets/worker-*.js`: deploy the worker asset with the module; keep its relative location.
+
+To build the standalone guest page, run `npm run build:landing`, then
+`npm run preview:landing`. Deploy the complete `dist/landing/` directory. This
+separate build defaults to `production.wbe2`; choose another existing environment
+with `npm run build:landing -- --mode development.wbe`, for example. The original
+six widget builds keep their outputs and scripts.
 
 The module continues to export the default `ChatBot` component and named `React` / `ReactDOM` exports. Existing host-page mounting code can keep its props:
 
