@@ -27,6 +27,7 @@ The supplied environment files are preserved. Server configuration remains in `V
 npm run typecheck
 npm run lint
 npm run build
+npm run test:ui
 ```
 
 `npm run build` builds all six existing production/staging variants. You can also run `npm run build:production` or `npm run build:staging`.
@@ -75,6 +76,27 @@ src/
 
 Edit `src/custom.css` for colors and panel sizing. Theme variables are scoped to `.ubiq-chat`; Tailwind preflight is disabled and utilities are scoped to the widget to avoid changing WordPress page styles. `components.json`, path aliases, Tailwind, and PostCSS are configured for local shadcn components.
 
+The widget uses a forest-green and ivory concierge theme. Starter questions fill
+the composer for editing before sending and stay available after the server
+greeting. A configured `booking_link` adds a Book a room shortcut that opens in a
+new tab. Restarting a conversation with history requires confirmation, including
+the restart link shown after expiry.
+
+On screens up to 640px wide, the open panel fills the visible viewport with
+safe-area margins. Opening on phones focuses the close control; the keyboard
+opens when the guest chooses to type. Closing or resizing retains the draft.
+
+## UI regression checks
+
+Install the test browsers once with `npx playwright install chromium webkit`,
+then run `npm run test:ui`. The suite starts its own Vite host and a local
+Socket.IO fixture on ports 4180 and 4181. It uses test identifiers and a test
+signing key, independent of the supplied environment files and live backend.
+Chromium and WebKit cover starter questions, booking, restart/expiry, mobile
+layout, drafts, Markdown, clipboard (Chromium), errors, history, and reduced
+motion. Screenshots and failure traces are saved under ignored `test-results/`.
+Real device software-keyboard behavior still needs a mobile Safari/Chrome check.
+
 ## Preserved backend behavior
 
 - Signed HS256 JWT with existing client data, booking token, and one-hour expiry.
@@ -100,5 +122,6 @@ Worker creation and host listeners now follow the React effect lifecycle, with c
 ## Validation
 
 See `MIGRATION-NOTES.md` for the checks performed and the limits of that verification.
+See `docs/concierge-widget.md` for the concierge refresh, current previews, and its validation results.
 
 References: https://www.assistant-ui.com/docs/runtimes/custom/external-store and https://ui.shadcn.com/docs

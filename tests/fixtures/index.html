@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Hotel widget test</title>
+        <style>
+            body { margin: 0; min-height: 150vh; background: #eeeae2; color: #25362c; font-family: system-ui, sans-serif; }
+            main { padding: 40px; max-width: 640px; }
+            button { background: pink; color: purple; padding: 6px; }
+            h2 { font-family: monospace; }
+        </style>
+    </head>
+    <body>
+        <main><h1>Your stay begins here</h1><p>A hotel page hosting the guest assistant.</p><button id="host-button">Hotel page button</button></main>
+        <div id="root"></div>
+        <script type="module" src="/tests/fixtures/widget.tsx"></script>
+    </body>
+</html>

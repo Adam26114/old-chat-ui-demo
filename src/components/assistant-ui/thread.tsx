@@ -1,32 +1,60 @@
-import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive } from "@assistant-ui/react";
+import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { ArrowDown, ArrowUp, Bot, Check, Copy } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, BellRing, Check, Copy } from "lucide-react";
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { Button } from "../ui/button";
 import remarkGfm from "remark-gfm";
 
 const MarkdownText = () => <MarkdownTextPrimitive className="chat-markdown" remarkPlugins={[remarkGfm]} smooth={false} />;
 
+const starterQuestions = [
+    { label: "Rooms & reservations", prompt: "Can you help me book a room?" },
+    { label: "Check-in & check-out", prompt: "What are the check-in and check-out times?" },
+    { label: "Hotel amenities", prompt: "What amenities are available at the hotel?" },
+];
+
+function StarterQuestions() {
+    const visible = useAuiState((state) => !state.thread.messages.some((message) => message.role === "user") && state.composer.text.trim() === "" && !state.thread.isDisabled);
+    if (!visible) return null;
+    return (
+        <div className="chat-suggestions" aria-label="Starter questions">
+            <p className="chat-suggestions-label">A few ways we can help</p>
+            {starterQuestions.map(({ label, prompt }) => (
+                <ThreadPrimitive.Suggestion
+                    key={label}
+                    prompt={prompt}
+                    send={false}
+                    clearComposer
+                    asChild
+                    onClick={(event) => event.currentTarget.closest(".chat-panel")?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true })}
+                >
+                    <Button variant="outline" className="chat-suggestion">{label}<ArrowRight aria-hidden="true" /></Button>
+                </ThreadPrimitive.Suggestion>
+            ))}
+        </div>
+    );
+}
+
 const UserMessage = () => (
-    <MessagePrimitive.Root className="mb-5 flex justify-end" data-message-role="user">
-        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-primary px-4 py-3 text-sm leading-relaxed text-primary-foreground">
+    <MessagePrimitive.Root className="chat-message chat-message-user" data-message-role="user">
+        <div className="chat-bubble chat-bubble-user">
             <MessagePrimitive.Content />
         </div>
     </MessagePrimitive.Root>
 );
 
 const AssistantMessage = () => (
-    <MessagePrimitive.Root className="group mb-5 flex gap-2.5" data-message-role="assistant">
-        <div className="mt-1 flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-primary" aria-hidden="true"><Bot className="size-4" /></div>
-        <div className="min-w-0 max-w-[85%] flex-1">
-            <div className="rounded-2xl rounded-tl-sm border border-border bg-background px-4 py-3 text-sm leading-relaxed">
+    <MessagePrimitive.Root className="chat-message chat-message-assistant" data-message-role="assistant">
+        <div className="chat-message-avatar" aria-hidden="true"><BellRing /></div>
+        <div className="chat-message-body">
+            <div className="chat-bubble chat-bubble-assistant">
                 <MessagePrimitive.Content components={{ Text: MarkdownText }} />
             </div>
-            <ActionBarPrimitive.Root className="mt-1 flex">
+            <ActionBarPrimitive.Root className="chat-message-actions">
                 <ActionBarPrimitive.Copy asChild>
-                    <Button variant="ghost" size="icon" className="size-7 text-muted-foreground" aria-label="Copy message" title="Copy message">
-                        <MessagePrimitive.If copied><Check /></MessagePrimitive.If>
-                        <MessagePrimitive.If copied={false}><Copy /></MessagePrimitive.If>
+                    <Button variant="ghost" size="icon" className="chat-copy" aria-label="Copy message" title="Copy message">
+                        <MessagePrimitive.If copied><Check aria-hidden="true" /></MessagePrimitive.If>
+                        <MessagePrimitive.If copied={false}><Copy aria-hidden="true" /></MessagePrimitive.If>
                     </Button>
                 </ActionBarPrimitive.Copy>
             </ActionBarPrimitive.Root>
@@ -36,43 +64,43 @@ const AssistantMessage = () => (
 
 export function Thread({ isRunning, expired }: { isRunning: boolean; expired: boolean }) {
     return (
-        <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
-            <div className="relative flex min-h-0 flex-1 flex-col">
-                <ThreadPrimitive.Viewport className="chat-viewport min-h-0 flex-1 overflow-y-auto px-5 py-6" autoScroll>
+        <ThreadPrimitive.Root className="chat-thread">
+            <div className="chat-scroll-container">
+                <ThreadPrimitive.Viewport className="chat-viewport" autoScroll>
                     <ThreadPrimitive.Empty>
-                        <div className="flex min-h-56 flex-col items-center justify-center text-center">
-                            <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-accent text-primary"><Bot className="size-7" /></div>
-                            <h3 className="text-lg font-semibold tracking-tight">How can we help?</h3>
-                            <p className="mt-2 max-w-60 text-sm leading-relaxed text-muted-foreground">Ask about rooms, reservations, or anything you need for your stay.</p>
+                        <div className="chat-welcome">
+                            <div className="chat-welcome-icon" aria-hidden="true"><BellRing /></div>
+                            <h3>Make yourself at home.</h3>
+                            <p>From finding a room to planning your stay, we're here to help.</p>
                         </div>
                     </ThreadPrimitive.Empty>
                     <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+                    <StarterQuestions />
                     {isRunning ? (
-                        <div role="status" className="flex items-center gap-3 px-1 text-sm text-muted-foreground">
-                            <div className="chat-typing flex gap-1" aria-hidden="true"><span /><span /><span /></div>
+                        <div role="status" className="chat-waiting">
+                            <div className="chat-typing" aria-hidden="true"><span /><span /><span /></div>
                             <span>Thinking…</span>
                         </div>
                     ) : null}
                 </ThreadPrimitive.Viewport>
-                <ThreadPrimitive.ScrollToBottom asChild>
-                    <Button variant="outline" size="icon" className="absolute bottom-3 left-1/2 size-8 -translate-x-1/2 rounded-full shadow-sm disabled:invisible" aria-label="Scroll to latest message"><ArrowDown /></Button>
+                <ThreadPrimitive.ScrollToBottom asChild onClick={(event) => event.currentTarget.closest<HTMLElement>(".chat-panel")?.focus({ preventScroll: true })}>
+                    <Button variant="outline" size="icon" className="chat-scroll-latest disabled:invisible" aria-label="Scroll to latest message"><ArrowDown aria-hidden="true" /></Button>
                 </ThreadPrimitive.ScrollToBottom>
             </div>
-            <div className="border-t border-border bg-background px-4 pb-3 pt-4">
-                <ComposerPrimitive.Root className="flex items-end gap-2 rounded-xl border border-input bg-background p-2 focus-within:ring-2 focus-within:ring-ring/30">
+            <div className="chat-composer-footer">
+                <ComposerPrimitive.Root className="chat-composer">
                     <ComposerPrimitive.Input
-                        className="max-h-32 min-h-10 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-sm leading-5 text-foreground outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed"
-                        placeholder={expired ? "Restart chat to continue" : "Type your message…"}
+                        className="chat-input"
+                        placeholder={expired ? "Restart chat to continue" : "How can we help with your stay?"}
                         aria-label="Message"
                         rows={1}
-                        autoFocus
                         addAttachmentOnPaste={false}
                     />
                     <ComposerPrimitive.Send asChild>
-                        <Button size="icon" className="size-10 shrink-0 rounded-lg" aria-label="Send message" title="Send message"><ArrowUp /></Button>
+                        <Button size="icon" className="chat-send" aria-label="Send message" title="Send message"><ArrowUp aria-hidden="true" /></Button>
                     </ComposerPrimitive.Send>
                 </ComposerPrimitive.Root>
-                <p className="mt-2 text-center text-[11px] text-muted-foreground">Enter to send · Shift + Enter for a new line</p>
+                <p className="chat-composer-hint">Enter to send · Shift + Enter for a new line</p>
             </div>
         </ThreadPrimitive.Root>
     );
