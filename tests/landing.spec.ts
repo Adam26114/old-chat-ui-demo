@@ -3,10 +3,21 @@ import { expect, test } from "@playwright/test";
 const landingPath = "/tests/fixtures/landing.html";
 
 test("guests can explore the hotel and open configured booking without leaving the page", async ({ page }, testInfo) => {
+    const fetchPriorityWarnings: string[] = [];
+    page.on("console", (message) => {
+        const text = message.text();
+        if (text.includes("fetchPriority") && text.includes("does not recognize")) {
+            fetchPriorityWarnings.push(text);
+        }
+    });
     await page.setViewportSize({ width: 1440, height: 960 });
     await page.goto(landingPath);
     await expect(page.getByRole("heading", { level: 1, name: "A little calm. A little closer." })).toBeVisible();
     await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeVisible();
+    const heroImage = page.getByRole("img", { name: "Illustration of a peaceful green-and-ivory room overlooking a tropical harbour", exact: true });
+    await expect(heroImage).toBeVisible();
+    await expect.poll(() => heroImage.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+    expect(fetchPriorityWarnings).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath("landing-desktop.png"), fullPage: true });
 
     const navigation = page.getByRole("navigation", { name: "Main navigation" });

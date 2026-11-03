@@ -79,7 +79,7 @@ function GuestPage({ chatbotProps }: { chatbotProps: ChatbotProp }) {
                         </div>
                     </div>
                     <figure className="hotel-hero-art">
-                        <img src={hotelIllustration} alt="Illustration of a peaceful green-and-ivory room overlooking a tropical harbour" width="1536" height="1024" fetchPriority="high" />
+                        <img src={hotelIllustration} alt="Illustration of a peaceful green-and-ivory room overlooking a tropical harbour" width="1536" height="1024" />
                         <figcaption><Leaf aria-hidden="true" /> An illustrated view of a slower Singapore stay.</figcaption>
                     </figure>
                 </section>
