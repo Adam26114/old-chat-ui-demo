@@ -28,7 +28,7 @@ io.on("connection", (socket) => {
         } else if (input === "Show an error") {
             socket.emit("error", "We couldn't answer that question. Please try again.");
         } else {
-            setTimeout(() => socket.emit("response", `You asked: **${input}**.\n\n| Room | Rate |\n| --- | --- |\n| Deluxe | 120 |\n\n[Book a room](http://127.0.0.1:4180/tests/fixtures/booking.html)`), 350);
+            setTimeout(() => socket.emit("response", `You asked: **${input}**.\n\n| Room | Rate |\n| --- | --- |\n| Deluxe | 120 |\n\n[Book a room](http://127.0.0.1:4180/tests/fixtures/booking.html)`), input === "Take your time" ? 1200 : 350);
         }
     });
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useId, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { AssistantRuntimeProvider, useExternalStoreRuntime, type AppendMessage, type ThreadMessageLike } from "@assistant-ui/react";
 import { ArrowUpRight, BellRing, RotateCcw, X } from "lucide-react";
@@ -8,6 +8,8 @@ import { Button } from "./ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "./ui/alert-dialog";
 import { useChatWorker } from "../hooks/use-chat-worker";
 import { type ChatRecord } from "../lib/chat-history";
+import { useChatMotion } from "../hooks/use-chat-motion";
+import { ChatMotionContext } from "../lib/chat-motion";
 import "../custom.css";
 
 const convertMessage = (message: ChatRecord): ThreadMessageLike => ({
@@ -22,8 +24,8 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const launcherRef = useRef<HTMLButtonElement>(null);
     const restartButtonRef = useRef<HTMLButtonElement>(null);
     const closeButtonRef = useRef<HTMLButtonElement>(null);
-    const restoreLauncherFocus = useRef(false);
-    const [open, setOpen] = useState(false);
+    const panelRef = useRef<HTMLElement>(null);
+    const { open, present, motion, toggle, keyboard, press, release } = useChatMotion({ widget: widgetRef, panel: panelRef, launcher: launcherRef, closeControl: closeButtonRef });
     const [confirmRestart, setConfirmRestart] = useState(false);
     const panelID = useId();
     const titleID = useId();
@@ -42,42 +44,6 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const title = props?.chatbox_title || "Guest assistant";
     const statusText = status === "connected" ? "Ready to help with your stay" : status === "expired" ? "Session expired · restart to continue" : status === "disconnected" ? "Reconnecting…" : "Connecting…";
 
-    useEffect(() => {
-        if (open) {
-            const input = widgetRef.current?.querySelector<HTMLTextAreaElement>("textarea");
-            const touchOrPhone = window.matchMedia("(max-width: 640px), (pointer: coarse)").matches;
-            const target = touchOrPhone || input?.disabled ? closeButtonRef.current : input;
-            target?.focus({ preventScroll: true });
-        } else if (restoreLauncherFocus.current) {
-            launcherRef.current?.focus({ preventScroll: true });
-            restoreLauncherFocus.current = false;
-        }
-    }, [open]);
-    useEffect(() => {
-        const widget = widgetRef.current;
-        if (!open || !widget) return;
-        const viewport = window.visualViewport;
-        if (!viewport) return;
-        const updateViewport = () => {
-            widget.style.setProperty("--chat-viewport-height", `${viewport.height}px`);
-            widget.style.setProperty("--chat-viewport-top", `${viewport.offsetTop}px`);
-        };
-        updateViewport();
-        viewport.addEventListener("resize", updateViewport);
-        viewport.addEventListener("scroll", updateViewport);
-        window.addEventListener("resize", updateViewport);
-        return () => {
-            viewport.removeEventListener("resize", updateViewport);
-            viewport.removeEventListener("scroll", updateViewport);
-            window.removeEventListener("resize", updateViewport);
-            widget.style.removeProperty("--chat-viewport-height");
-            widget.style.removeProperty("--chat-viewport-top");
-        };
-    }, [open]);
-    const close = () => {
-        restoreLauncherFocus.current = true;
-        setOpen(false);
-    };
     const startNewChat = () => {
         runtime.thread.composer.setText("");
         void restart();
@@ -93,10 +59,15 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                 ref={widgetRef}
                 className="ubiq-chat"
                 data-open={open}
+                data-present={present}
+                tabIndex={-1}
+                onKeyDownCapture={keyboard}
+                onPointerDownCapture={(event) => press(event.target)}
+                onPointerLeave={release}
                 onKeyDown={(event) => {
-                    if (event.key === "Escape" && open && !confirmRestart && !event.defaultPrevented && !event.nativeEvent.isComposing) {
+                    if (event.key === "Escape" && (open || present) && !confirmRestart && !event.defaultPrevented && !event.nativeEvent.isComposing) {
                         event.preventDefault();
-                        close();
+                        toggle(false, false);
                     }
                 }}
                 onClick={(event) => {
@@ -104,7 +75,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                     if (link) { event.preventDefault(); requestRestart(); }
                 }}
             >
-                <section id={panelID} hidden={!open} aria-labelledby={titleID} tabIndex={-1} className="chat-panel">
+                <section ref={panelRef} id={panelID} hidden={!present} aria-hidden={!open} aria-labelledby={titleID} tabIndex={-1} className="chat-panel">
                     <header className="chat-header">
                         <Avatar className="chat-header-avatar">
                             <AvatarImage src={props?.avatar} alt="" />
@@ -118,7 +89,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                             </p>
                         </div>
                         <Button ref={restartButtonRef} variant="ghost" size="icon" className="chat-icon-button" onClick={requestRestart} aria-label="Restart chat" title="Restart chat"><RotateCcw aria-hidden="true" /></Button>
-                        <Button ref={closeButtonRef} variant="ghost" size="icon" className="chat-icon-button" onClick={close} aria-label="Close chat" title="Close chat"><X aria-hidden="true" /></Button>
+                        <Button ref={closeButtonRef} variant="ghost" size="icon" className="chat-icon-button" onClick={(event) => toggle(false, event.detail > 0)} aria-label="Close chat" title="Close chat"><X aria-hidden="true" /></Button>
                     </header>
                     {props?.booking_link ? (
                         <div className="chat-guest-actions">
@@ -127,9 +98,11 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                             </Button>
                         </div>
                     ) : null}
-                    <Thread isRunning={isRunning} expired={status === "expired"} />
+                    <ChatMotionContext.Provider value={motion}>
+                        <Thread isRunning={isRunning} expired={status === "expired"} />
+                    </ChatMotionContext.Provider>
                 </section>
-                <Button ref={launcherRef} className="chat-launcher" size="icon" onClick={() => open ? close() : setOpen(true)} aria-label={open ? "Hide chat" : "Open chat"} aria-expanded={open} aria-controls={panelID}>
+                <Button ref={launcherRef} className="chat-launcher" size="icon" onClick={(event) => toggle(undefined, event.detail > 0)} aria-label={open ? "Hide chat" : "Open chat"} aria-expanded={open} aria-controls={panelID}>
                     {open ? <X aria-hidden="true" /> : <BellRing aria-hidden="true" />}
                 </Button>
                 <AlertDialog open={confirmRestart} onOpenChange={setConfirmRestart}>

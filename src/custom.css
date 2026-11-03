@@ -33,6 +33,7 @@
 .ubiq-chat button { cursor: pointer; background-color: transparent; background-image: none; text-transform: none; }
 .ubiq-chat button:disabled { cursor: default; }
 .ubiq-chat svg { display: block; }
+.ubiq-chat:focus { outline: none; }
 .ubiq-chat [hidden] { display: none !important; }
 .ubiq-chat .chat-panel {
     display: flex;
@@ -41,6 +42,7 @@
     height: min(640px, calc(100dvh - 106px));
     margin-bottom: 14px;
     overflow: hidden;
+    transform-origin: bottom right;
     border: 1px solid hsl(var(--border));
     border-radius: 22px;
     background: hsl(var(--muted));
@@ -87,9 +89,7 @@
 .ubiq-chat .chat-welcome p { max-width: 260px; margin-top: 10px; font-size: 13px; color: hsl(var(--muted-foreground)); }
 .ubiq-chat .chat-waiting { display: flex; align-items: center; gap: 10px; padding: 0 2px 14px; color: hsl(var(--muted-foreground)); font-size: 12px; }
 .ubiq-chat .chat-typing { display: flex; gap: 4px; }
-.ubiq-chat .chat-typing span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: ubiq-chat-pulse 1.2s ease-in-out infinite; }
-.ubiq-chat .chat-typing span:nth-child(2) { animation-delay: 0.15s; }
-.ubiq-chat .chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+.ubiq-chat .chat-typing span { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.55; }
 .ubiq-chat .chat-scroll-latest { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; box-shadow: 0 2px 8px hsl(var(--primary) / 12%); }
 .ubiq-chat .chat-composer-footer { flex-shrink: 0; padding: 14px 16px 12px; border-top: 1px solid hsl(var(--border)); background: hsl(var(--background)); }
 .ubiq-chat .chat-composer { display: flex; align-items: flex-end; gap: 8px; padding: 7px; border: 1px solid hsl(var(--input)); border-radius: 16px; background: hsl(var(--background)); transition: border-color 150ms, box-shadow 150ms; }
@@ -119,11 +119,10 @@
 .ubiq-chat .chat-markdown th, .ubiq-chat .chat-markdown td { padding: 8px 10px; border: 1px solid hsl(var(--border)); text-align: left; }
 .ubiq-chat .chat-markdown th { background: hsl(var(--muted)); }
 .ubiq-chat .chat-markdown img { max-width: 100%; height: auto; border-radius: 8px; }
-@keyframes ubiq-chat-pulse { 0%, 80%, 100% { opacity: 0.35; } 40% { opacity: 1; } }
 @media (max-width: 640px), (pointer: coarse) and (max-width: 1024px) and (max-height: 500px) {
     .ubiq-chat { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
     .ubiq-chat .chat-panel { position: fixed; top: var(--chat-viewport-top, 0px); left: 0; right: 0; width: auto; height: var(--chat-viewport-height, 100dvh); margin: 0; border: 0; border-radius: 0; box-shadow: none; }
-    .ubiq-chat[data-open="true"] .chat-launcher { display: none; }
+    .ubiq-chat[data-present="true"] .chat-launcher { display: none; }
     .ubiq-chat .chat-header { padding: calc(14px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) 12px calc(14px + env(safe-area-inset-left)); gap: 8px; }
     .ubiq-chat .chat-header-avatar { width: 38px; height: 38px; border-radius: 12px; }
     .ubiq-chat .chat-title { font-size: 18px; }
@@ -135,6 +134,5 @@
     .ubiq-chat .chat-composer-hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-    .ubiq-chat .chat-typing span { animation: none; }
     .ubiq-chat button[class], .ubiq-chat .chat-composer { transition: none; }
 }

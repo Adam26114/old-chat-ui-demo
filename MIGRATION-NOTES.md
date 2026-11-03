@@ -36,7 +36,7 @@ checks, both WBE widget builds, and the standalone landing build. The landing
 JavaScript bundle decreased from 1,120.56 kB to 1,060.26 kB.
 
 Run typechecking, linting, `npm run test:ui`, `npm run build`, and
-`npm run build:landing`. The existing suite contains 36 Chromium/WebKit checks
+`npm run build:landing`. The suite now contains 52 Chromium/WebKit checks
 using the actual guest page, widget, worker, and a controlled Socket.IO backend.
 It covers messaging, Markdown, errors, restored history, expiry/restart,
 viewport bounds, keyboard/focus behavior, guest-page navigation, booking,

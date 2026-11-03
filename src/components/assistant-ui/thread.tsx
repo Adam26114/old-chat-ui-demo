@@ -4,6 +4,8 @@ import { ArrowDown, ArrowRight, ArrowUp, BellRing, Check, Copy } from "lucide-re
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { Button } from "../ui/button";
 import remarkGfm from "remark-gfm";
+import { useContext, useRef } from "react";
+import { ChatMotionContext, enterChatElement, gsap, useGSAP } from "../../lib/chat-motion";
 
 const MarkdownText = () => <MarkdownTextPrimitive className="chat-markdown" remarkPlugins={[remarkGfm]} smooth={false} />;
 
@@ -15,9 +17,18 @@ const starterQuestions = [
 
 function StarterQuestions() {
     const visible = useAuiState((state) => !state.thread.messages.some((message) => message.role === "user") && state.composer.text.trim() === "" && !state.thread.isDisabled);
+    const ref = useRef<HTMLDivElement>(null);
+    const considered = useRef(false);
+    const motion = useContext(ChatMotionContext);
+    useGSAP(() => {
+        if (!motion?.open || considered.current) return;
+        considered.current = true;
+        if (!motion.intro || !motion.pageVisible || !ref.current) return;
+        return enterChatElement(motion, ref.current.querySelectorAll("button"), 4, 0.16, 0.04);
+    }, { scope: ref, dependencies: [motion?.open] });
     if (!visible) return null;
     return (
-        <div className="chat-suggestions" aria-label="Starter questions">
+        <div ref={ref} className="chat-suggestions" aria-label="Starter questions">
             <p className="chat-suggestions-label">A few ways we can help</p>
             {starterQuestions.map(({ label, prompt }) => (
                 <ThreadPrimitive.Suggestion
@@ -43,8 +54,20 @@ const UserMessage = () => (
     </MessagePrimitive.Root>
 );
 
-const AssistantMessage = () => (
-    <MessagePrimitive.Root className="chat-message chat-message-assistant" data-message-role="assistant">
+function AssistantMessage() {
+    const ref = useRef<HTMLDivElement>(null);
+    const id = useAuiState((state) => state.message.id);
+    const motion = useContext(ChatMotionContext);
+    // Eligibility belongs to this message's arrival, not later visibility changes.
+    const arrival = useRef({ id, animate: Boolean(motion?.open && motion.pageVisible && !motion.seenReplies.has(id)) });
+    if (arrival.current.id !== id) arrival.current = { id, animate: Boolean(motion?.open && motion.pageVisible && !motion.seenReplies.has(id)) };
+    useGSAP(() => {
+        motion?.seenReplies.add(id);
+        if (!motion || !ref.current || !arrival.current.animate) return;
+        return enterChatElement(motion, ref.current, 6, 0.18);
+    }, { scope: ref, dependencies: [id], revertOnUpdate: true });
+    return (
+    <MessagePrimitive.Root ref={ref} className="chat-message chat-message-assistant" data-message-role="assistant">
         <div className="chat-message-avatar" aria-hidden="true"><BellRing /></div>
         <div className="chat-message-body">
             <div className="chat-bubble chat-bubble-assistant">
@@ -60,7 +83,22 @@ const AssistantMessage = () => (
             </ActionBarPrimitive.Root>
         </div>
     </MessagePrimitive.Root>
-);
+    );
+}
+
+function TypingIndicator() {
+    const ref = useRef<HTMLDivElement>(null);
+    const motion = useContext(ChatMotionContext);
+    useGSAP(() => {
+        if (!motion?.open || !motion.pageVisible || motion.reduced || !ref.current) return;
+        const dots = ref.current.children;
+        gsap.set(dots, { opacity: 0.35 });
+        gsap.timeline({ repeat: -1 })
+            .to(dots, { opacity: 1, duration: 0.3, stagger: 0.15, ease: "sine.inOut" })
+            .to(dots, { opacity: 0.35, duration: 0.3, stagger: 0.15, ease: "sine.inOut" });
+    }, { scope: ref, dependencies: [motion?.open, motion?.pageVisible, motion?.reduced], revertOnUpdate: true });
+    return <div role="status" className="chat-waiting"><div ref={ref} className="chat-typing" aria-hidden="true"><span /><span /><span /></div><span>Thinking…</span></div>;
+}
 
 export function Thread({ isRunning, expired }: { isRunning: boolean; expired: boolean }) {
     return (
@@ -76,12 +114,7 @@ export function Thread({ isRunning, expired }: { isRunning: boolean; expired: bo
                     </ThreadPrimitive.Empty>
                     <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
                     <StarterQuestions />
-                    {isRunning ? (
-                        <div role="status" className="chat-waiting">
-                            <div className="chat-typing" aria-hidden="true"><span /><span /><span /></div>
-                            <span>Thinking…</span>
-                        </div>
-                    ) : null}
+                    {isRunning ? <TypingIndicator /> : null}
                 </ThreadPrimitive.Viewport>
                 <ThreadPrimitive.ScrollToBottom asChild onClick={(event) => event.currentTarget.closest<HTMLElement>(".chat-panel")?.focus({ preventScroll: true })}>
                     <Button variant="outline" size="icon" className="chat-scroll-latest disabled:invisible" aria-label="Scroll to latest message"><ArrowDown aria-hidden="true" /></Button>

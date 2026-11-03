@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, type MouseEvent } from "react";
 import { ArrowRight, ArrowUpRight, BedDouble, BellRing, Coffee, Leaf, Luggage, MapPin, Menu, Waves, Wifi, X } from "lucide-react";
 import ChatBot from "../ChatBot";
 import { Button } from "../ui/button";
@@ -29,9 +29,9 @@ function GuestPage({ chatbotProps }: { chatbotProps: ChatbotProp }) {
     const widgetHost = useRef<HTMLDivElement>(null);
     const conciergeAvailable = Boolean(chatbotProps.app_key && chatbotProps.customer_id && import.meta.env.VITE_CHAT_SERVER && import.meta.env.VITE_CHAT_SERVER_KEY);
     const bookingLink = chatbotProps.booking_link?.trim();
-    const askConcierge = () => {
+    const askConcierge = (event: MouseEvent<HTMLButtonElement>) => {
         setMenuOpen(false);
-        widgetHost.current?.querySelector<HTMLButtonElement>('.chat-launcher[aria-expanded="false"]')?.click();
+        widgetHost.current?.querySelector<HTMLButtonElement>('.chat-launcher[aria-expanded="false"]')?.dispatchEvent(new window.MouseEvent("click", { bubbles: true, detail: event.detail }));
     };
     const bookingControl = (className = "") => bookingLink ? (
         <Button asChild className={`hotel-button hotel-button-primary ${className}`}>

@@ -76,6 +76,7 @@ src/
     hotel/guest-page.tsx        Bay Hotel guest page
     ui/button.tsx              local shadcn Button source
     ui/avatar.tsx              local shadcn Avatar source
+  hooks/use-chat-motion.ts     scoped GSAP motion, presence, focus, and viewport lifecycle
   hooks/use-chat-worker.ts     worker authentication, history, and server events
   lib/chat-history.ts          compatible history records and cross-tab deduplication
   lib/utils.ts                shadcn class-name utility
@@ -93,6 +94,11 @@ greeting. A configured `booking_link` adds a Book a room shortcut that opens in 
 new tab. Restarting a conversation with history requires confirmation, including
 the restart link shown after expiry.
 
+GSAP adds calm panel entrances/exits, new-reply entrances, a first-open prompt
+stagger, visible-only typing feedback, and pointer press feedback. Keyboard
+actions stay instant; reduced motion removes movement and stagger. See
+[`docs/concierge-widget.md`](docs/concierge-widget.md) for timings and behavior.
+
 The copy control uses a small outlined icon with a compact mint hover/focus tile
 inside its larger touch target, spaced below the message bubble.
 
@@ -109,8 +115,8 @@ Install the test browsers once with `npx playwright install chromium webkit`,
 then run `npm run test:ui`. The suite starts its own Vite host and a local
 Socket.IO fixture on ports 4180 and 4181. It uses test identifiers and a test
 signing key, independent of the supplied environment files and live backend.
-The existing suite has 36 Chromium/WebKit checks: 10 guest-page checks and 26
-widget checks. They cover navigation, starter questions, booking, restart/expiry,
+The suite has 52 Chromium/WebKit checks: 10 guest-page checks, 26 widget checks,
+and 16 motion checks. They cover navigation, starter questions, booking, restart/expiry,
 mobile layout, drafts, Markdown, clipboard (Chromium), errors, history, and reduced
 motion. Screenshots and failure traces are saved under ignored `test-results/`.
 Real device software-keyboard behavior still needs a mobile Safari/Chrome check.
