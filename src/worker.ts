@@ -11,6 +11,16 @@ let authenticated:boolean = false;
 let authPool:ReturnType<typeof setInterval>;
 let socket:Socket;
 const ports:(MessagePort|Worker)[] = [];
+let previousChatEvent: string | undefined;
+const chatEvents = new Set(["response", "error", "severe", "expired"]);
+
+function relayChat(type: string, message = "") {
+    const key = JSON.stringify([type, message]);
+    if (key === previousChatEvent) return;
+    previousChatEvent = key;
+    const event = { id: uuidv4(), timestamp: Date.now(), type, message };
+    ports.forEach((port) => port.postMessage(event));
+}
 
 const extractXAuthToken = (token:string) => {
     const decoded = jwtDecode(token) as IJwtPayload;
@@ -20,6 +30,7 @@ const extractXAuthToken = (token:string) => {
 let x_auth_token:string = extractXAuthToken(authToken);
 
 const authenticate = () => {
+    previousChatEvent = undefined;
     authenticated = false;
     clearInterval(authPool);
 
@@ -42,8 +53,12 @@ const authenticate = () => {
 
 const initSocket = () => {
     const _socket = io(CHAT_SERVER);
+    _socket.onAny((type: string) => {
+        if (!chatEvents.has(type)) previousChatEvent = undefined;
+    });
 
     _socket.on("connect", () => {
+        previousChatEvent = undefined;
         /**
          * Once connected we will send auth
          * Except in event disconnected
@@ -86,31 +101,15 @@ const initSocket = () => {
             });
         }
 
-        const id = uuidv4();
-        ports.forEach((_port) => {
-            _port.postMessage({
-                id,
-                type: "response",
-                message
-            });
-        });
+        relayChat("response", message);
     });
 
-    _socket.on("error", (message) => {
-        console.error(message);
-
-        const id = uuidv4();
-        ports.forEach((_port) => {
-            _port.postMessage({
-                id,
-                type: "error",
-                message
-            });
-        });
-    });
+    _socket.on("error", (message: string) => relayChat("error", message));
+    _socket.on("severe", (message: string) => relayChat("severe", message));
 
     _socket.on("disconnect", () => {
         disconnected = true;
+        previousChatEvent = undefined;
 
         ports.forEach((_port) => {
             _port.postMessage({
@@ -120,13 +119,7 @@ const initSocket = () => {
     });
 
     _socket.on("expired", () => {
-        const id = uuidv4();
-        ports.forEach((_port) => {
-            _port.postMessage({
-                id,
-                type: "expired"
-            });
-        });
+        relayChat("expired");
 
         _socket.disconnect();
     });
@@ -181,6 +174,7 @@ const start = (port:(MessagePort|Worker)) => {
                 break;
 
             case "usermessage":
+                previousChatEvent = undefined;
                 socket.emit("chat", JSON.stringify({
                     input: data.message,
                     x_auth_token
@@ -191,6 +185,7 @@ const start = (port:(MessagePort|Worker)) => {
                     if(_port != port) {
                         _port.postMessage({
                             id: data.id,
+                            timestamp: data.timestamp,
                             type: "usermessage",
                             message: data.message
                         });

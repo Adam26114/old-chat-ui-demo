@@ -9,10 +9,17 @@ opens in a new tab. User-initiated restart asks for confirmation when there is
 history; cancellation keeps the conversation and draft. The same confirmation
 handles session-expiry links.
 
-Copy uses a 16px outlined icon, transparent at rest, with a 24px mint hover/focus
-tile inside a 44px touch target. The action row sits below the message bubble,
-with the icon aligned under the text. Clipboard, tooltip, and copied checkmark
-behavior are retained.
+Pending replies show animated dots and “Preparing your reply…”, directly
+below the guest message. Empty optimistic assistant rows are omitted. Each
+completed assistant reply shows device-local time below its bubble, with a full
+accessible date/time and ISO datetime. The creation timestamp is shared across
+tabs and preserved on reload. Legacy entries without time remain undated.
+
+Optional reCAPTCHA v3 is described in the README. A rejected or unavailable
+check restores the draft and shows retry feedback. The check runs before a
+message enters history or the socket. Consecutive duplicate server messages
+are filtered before fanout; `severe` events and the reference error codes are
+supported in both live messages and restored history.
 
 The phone panel fills the visible viewport edge to edge, without an outer frame.
 Safe-area padding sits inside the header, message area, booking row, and composer.
@@ -51,8 +58,8 @@ Keyboard actions finish entrances immediately; Escape closes instantly.
 Reduced-motion changes cancel movement and stagger, allow fades up to 100ms,
 and show static typing dots. Hidden panels/tabs stop the repeating typing loop.
 
-The final 52 browser checks, typechecking, linting, both WBE builds, and landing
-build passed. Desktop and mobile frames were inspected at normal and quarter
+The GSAP refresh passed its original 52 browser checks, typechecking, linting,
+both WBE builds, and landing build. Desktop and mobile frames were inspected at normal and quarter
 speed using the local fixture, without page errors. Standards and spec reviews
 have no remaining findings. GSAP adds approximately 33 kB gzip to the landing
 JavaScript and 39 kB gzip to the embeddable widget versus the preceding build.
@@ -65,7 +72,12 @@ JavaScript and 39 kB gzip to the embeddable widget versus the preceding build.
 
 ![Landscape concierge widget](chat-ui-mobile-landscape.png)
 
-![Copy control on hover](chat-copy-control.png)
+## November 4 validation
+
+All 80 Chromium/WebKit checks, typechecking, linting, production/staging WBE
+builds and the landing build passed. Desktop pending state and completed mobile
+replies were visually inspected. Both review axes have no remaining findings.
+Verification used SDK/verifier mocks and the local Socket.IO fixture.
 
 ## Regression coverage
 
@@ -73,14 +85,15 @@ The 26 existing widget checks across Chromium and WebKit use the real
 widget/runtime/worker with a controlled local Socket.IO fixture. They cover
 starter questions, booking, reset/expiry,
 reconnecting, scroll-to-latest, empty restart, history restoration, errors,
-Markdown, multiline input, copy (Chromium), mobile bounds, focus, reduced motion,
+Markdown, multiline input, timestamps, mobile bounds, focus, reduced motion,
 and host-style isolation. Mobile checks require full coverage at 320px, 390px,
 and 640px, plus touch-device landscape and shrinking viewports. The
 visualViewport-unavailable regression simulates a viewport change without
-a window resize event. Copy screenshots were inspected in resting, hover,
-keyboard-focus, and copied states during the original refresh.
+a window resize event. The November 4 feedback checks cover dated replies,
+legacy history, severe errors, duplicate filtering, shared tabs, verification
+failures/retries, SDK readiness and cancellation of stale checks.
 
-Run `npm run test:ui` for the complete suite, including 10 guest-page and 16 motion checks.
+Run `npm run test:ui` for the complete suite, including 10 guest-page, 16 motion, and 28 feedback checks.
 The WBE widget builds use `npm run build:production` and
 `npm run build:staging`; `npm run build` runs both with typechecking.
 

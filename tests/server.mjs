@@ -1,7 +1,20 @@
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 
+let chatCount = 0;
 const http = createServer((request, response) => {
+    if (request.url === "/stats") {
+        response.writeHead(200, { "Content-Type": "application/json" });
+        response.end(JSON.stringify({ chatCount }));
+        return;
+    }
+    if (request.url === "/disconnect" && request.method === "POST") {
+        resumeConnectionsAt = Date.now() + 800;
+        io.sockets.sockets.forEach((socket) => socket.conn.close());
+        response.writeHead(200);
+        response.end("ok");
+        return;
+    }
     response.writeHead(request.url === "/health" ? 200 : 404);
     response.end(request.url === "/health" ? "ok" : "Not found");
 });
@@ -17,8 +30,24 @@ io.on("connection", (socket) => {
         if (data.property_code !== "no-greeting") socket.emit("response", "Welcome to **group_name**. How can we help with your stay?");
     });
     socket.on("chat", (payload) => {
+        chatCount++;
         const { input } = JSON.parse(payload);
-        if (input === "Expire session") {
+        if (input.startsWith("Fixture error ")) {
+            const code = input.slice("Fixture error ".length);
+            socket.emit("error", code);
+            socket.emit("error", code);
+        } else if (input.startsWith("Fixture severe ")) {
+            const code = input.slice("Fixture severe ".length);
+            socket.emit("severe", code);
+            socket.emit("severe", code);
+        } else if (input === "Repeat answer") {
+            socket.emit("response", "The same answer.");
+            socket.emit("response", "The same answer.");
+        } else if (input === "Error sequence") {
+            socket.emit("error", "user_info");
+            socket.emit("error", "missing_parameters");
+            socket.emit("error", "user_info");
+        } else if (input === "Expire session") {
             socket.emit("expired");
         } else if (input === "Reconnect briefly") {
             resumeConnectionsAt = Date.now() + 3000;

@@ -95,7 +95,7 @@ test("new replies enter once; restored and hidden replies remain still", async (
     await opened(page);
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Take your time");
     await page.keyboard.press("Enter");
-    await expect(page.getByText("Thinking…", { exact: true })).toBeVisible();
+    await expect(page.getByText("Preparing your reply…", { exact: true })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(replies.last()).toContainText("Take your time");
     await page.getByRole("button", { name: "Open chat", exact: true }).click();
@@ -121,7 +121,7 @@ test("runtime reduced motion removes movement, stagger, and the typing loop", as
     });
     expect(new Set(samples).size).toBe(1);
     await expect(page.getByRole("table")).toBeVisible();
-    await expect(page.getByText("Thinking…", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Preparing your reply…", { exact: true })).toHaveCount(0);
 });
 
 test("mobile fading preserves viewport edges through entry and exit", async ({ page }) => {

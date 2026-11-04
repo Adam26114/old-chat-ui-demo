@@ -67,7 +67,7 @@ test("starter questions remain after the greeting and can be edited before sendi
     await expect(page.getByText("You asked:", { exact: false })).toHaveCount(0);
     await composer.fill("A deluxe room for two");
     await page.getByRole("button", { name: "Send message", exact: true }).click();
-    await expect(page.getByText("Thinking…", { exact: true })).toBeVisible();
+    await expect(page.getByText("Preparing your reply…", { exact: true })).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByText("A deluxe room for two", { exact: true })).toHaveCount(2);
     await expect(page.getByRole("button", { name: "Rooms & reservations", exact: true })).toHaveCount(0);
@@ -117,31 +117,19 @@ test("no booking shortcut is invented when a URL is not configured", async ({ pa
     await expect(page.getByRole("link", { name: "Book a room", exact: true })).toHaveCount(0);
 });
 
-test("errors, multiline input, restored history, and host styles remain usable", async ({ page, context, browserName }, testInfo) => {
+test("errors, multiline input, restored history, and host styles remain usable", async ({ page }, testInfo) => {
     await openChat(page);
     await expect(page.getByRole("button", { name: "Hotel page button" })).toHaveCSS("background-color", "rgb(255, 192, 203)");
     await expect(page.getByRole("button", { name: "Restart chat", exact: true })).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-    if (browserName === "chromium") {
-        await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-        const copyControl = page.getByRole("button", { name: "Copy message", exact: true });
-        const message = page.locator('[data-message-role="assistant"]').first();
-        await page.mouse.move(0, 0);
-        await message.screenshot({ path: testInfo.outputPath("copy-rest.png") });
-        await copyControl.hover();
-        await expect(copyControl).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
-        await message.screenshot({ path: testInfo.outputPath("copy-hover.png") });
-        await page.mouse.move(0, 0);
-        await page.keyboard.press("Tab");
-        await copyControl.focus();
-        await message.screenshot({ path: testInfo.outputPath("copy-keyboard-focus.png") });
-        await copyControl.click();
-        await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("Welcome to");
-        await message.screenshot({ path: testInfo.outputPath("copy-copied.png") });
-    }
+    const timestamp = page.locator('[data-message-role="assistant"] time').first();
+    await expect(timestamp).toBeVisible();
+    await expect(timestamp).toHaveAttribute("datetime", /T/);
+    await expect(page.getByRole("button", { name: "Copy message", exact: true })).toHaveCount(0);
+    await page.locator('[data-message-role="assistant"]').first().screenshot({ path: testInfo.outputPath("message-timestamp.png") });
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.fill("Show an error");
     await composer.press("Enter");
-    await expect(page.getByText("We couldn't answer that question. Please try again.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Unknown error: We couldn't answer that question. Please try again.", { exact: true })).toBeVisible();
     await composer.fill("Late arrival");
     await composer.press("Shift+Enter");
     await composer.press("a");

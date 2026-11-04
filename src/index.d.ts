@@ -17,6 +17,8 @@ declare global {
         payment_link?: string;
         chatbox_title?: string;
         avatar?: string;
+        recaptcha_site_key?: string;
+        recaptcha_endpoint?: string;
     }
 
     interface IJwtPayload extends JwtPayload {

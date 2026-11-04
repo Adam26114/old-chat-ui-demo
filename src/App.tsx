@@ -11,6 +11,8 @@ function App() {
         payment_link: import.meta.env.VITE_PAYMENT_LINK,
         chatbox_title: import.meta.env.VITE_CHATBOX_TITLE || "Bay Hotel Singapore",
         avatar: import.meta.env.VITE_AVATAR,
+        recaptcha_site_key: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
+        recaptcha_endpoint: import.meta.env.VITE_RECAPTCHA_ENDPOINT,
         x_auth_token: query.get("x_auth_token") || "",
     }} />;
 }

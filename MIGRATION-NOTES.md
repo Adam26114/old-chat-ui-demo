@@ -6,7 +6,7 @@
 components. The WBE-only project retains the default component export, named
 React/ReactDOM exports, prop names, library entry point, and backend settings.
 
-UI features: floating launcher, responsive panel, plain user bubbles, Markdown assistant responses with GFM tables and links, copy-message button, typing indicator, automatic scrolling and scroll-to-bottom control, connection status, session restart, keyboard submission, and Escape-to-close with focus restoration.
+UI features: floating launcher, responsive panel, plain user bubbles, Markdown assistant responses with GFM tables and links, message timestamps, typing indicator, automatic scrolling and scroll-to-bottom control, connection status, session restart, keyboard submission, and Escape-to-close with focus restoration.
 
 See [`docs/concierge-widget.md`](docs/concierge-widget.md) for widget previews
 and [`docs/guest-landing-page.md`](docs/guest-landing-page.md) for the guest page.
@@ -36,7 +36,7 @@ checks, both WBE widget builds, and the standalone landing build. The landing
 JavaScript bundle decreased from 1,120.56 kB to 1,060.26 kB.
 
 Run typechecking, linting, `npm run test:ui`, `npm run build`, and
-`npm run build:landing`. The suite now contains 52 Chromium/WebKit checks
+`npm run build:landing`. The suite now contains 80 Chromium/WebKit checks
 using the actual guest page, widget, worker, and a controlled Socket.IO backend.
 It covers messaging, Markdown, errors, restored history, expiry/restart,
 viewport bounds, keyboard/focus behavior, guest-page navigation, booking,

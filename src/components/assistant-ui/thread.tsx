@@ -1,7 +1,6 @@
 import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { ArrowDown, ArrowRight, ArrowUp, BellRing, Check, Copy } from "lucide-react";
-import { ActionBarPrimitive } from "@assistant-ui/react";
+import { ArrowDown, ArrowRight, ArrowUp, BellRing } from "lucide-react";
 import { Button } from "../ui/button";
 import remarkGfm from "remark-gfm";
 import { useContext, useRef } from "react";
@@ -55,6 +54,19 @@ const UserMessage = () => (
 );
 
 function AssistantMessage() {
+    const hasText = useAuiState((state) => state.message.content.some((part) => part.type === "text" && part.text.trim().length > 0));
+    return hasText ? <AssistantReply /> : null;
+}
+
+function MessageTimestamp() {
+    const timestamp = useAuiState((state) => state.message.metadata.custom?.timestamp);
+    if (typeof timestamp !== "number" || !Number.isFinite(new Date(timestamp).getTime())) return null;
+    const date = new Date(timestamp);
+    const fullDate = date.toLocaleString();
+    return <time className="chat-message-time" dateTime={date.toISOString()} title={fullDate} aria-label={fullDate}>{date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</time>;
+}
+
+function AssistantReply() {
     const ref = useRef<HTMLDivElement>(null);
     const id = useAuiState((state) => state.message.id);
     const motion = useContext(ChatMotionContext);
@@ -73,14 +85,7 @@ function AssistantMessage() {
             <div className="chat-bubble chat-bubble-assistant">
                 <MessagePrimitive.Content components={{ Text: MarkdownText }} />
             </div>
-            <ActionBarPrimitive.Root className="chat-message-actions">
-                <ActionBarPrimitive.Copy asChild>
-                    <Button variant="ghost" size="icon" className="chat-copy" aria-label="Copy message" title="Copy message">
-                        <MessagePrimitive.If copied><Check aria-hidden="true" /></MessagePrimitive.If>
-                        <MessagePrimitive.If copied={false}><Copy aria-hidden="true" /></MessagePrimitive.If>
-                    </Button>
-                </ActionBarPrimitive.Copy>
-            </ActionBarPrimitive.Root>
+            <MessageTimestamp />
         </div>
     </MessagePrimitive.Root>
     );
@@ -97,10 +102,10 @@ function TypingIndicator() {
             .to(dots, { opacity: 1, duration: 0.3, stagger: 0.15, ease: "sine.inOut" })
             .to(dots, { opacity: 0.35, duration: 0.3, stagger: 0.15, ease: "sine.inOut" });
     }, { scope: ref, dependencies: [motion?.open, motion?.pageVisible, motion?.reduced], revertOnUpdate: true });
-    return <div role="status" className="chat-waiting"><div ref={ref} className="chat-typing" aria-hidden="true"><span /><span /><span /></div><span>Thinking…</span></div>;
+    return <div role="status" className="chat-waiting"><div ref={ref} className="chat-typing" aria-hidden="true"><span /><span /><span /></div><span>Preparing your reply…</span></div>;
 }
 
-export function Thread({ isRunning, expired }: { isRunning: boolean; expired: boolean }) {
+export function Thread({ isRunning, expired, verificationError }: { isRunning: boolean; expired: boolean; verificationError: string | null }) {
     return (
         <ThreadPrimitive.Root className="chat-thread">
             <div className="chat-scroll-container">
@@ -133,6 +138,7 @@ export function Thread({ isRunning, expired }: { isRunning: boolean; expired: bo
                         <Button size="icon" className="chat-send" aria-label="Send message" title="Send message"><ArrowUp aria-hidden="true" /></Button>
                     </ComposerPrimitive.Send>
                 </ComposerPrimitive.Root>
+                {verificationError ? <p className="chat-verification-error" role="alert">{verificationError}</p> : null}
                 <p className="chat-composer-hint">Enter to send · Shift + Enter for a new line</p>
             </div>
         </ThreadPrimitive.Root>

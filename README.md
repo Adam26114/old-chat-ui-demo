@@ -72,7 +72,7 @@ The module continues to export the default `ChatBot` component and named `React`
 src/
   components/
     ChatBot.tsx                 widget entry point, launcher, header, runtime provider
-    assistant-ui/thread.tsx    bubbles, Markdown, copy, scrolling, composer
+    assistant-ui/thread.tsx    bubbles, Markdown, timestamps, scrolling, composer
     hotel/guest-page.tsx        Bay Hotel guest page
     ui/button.tsx              local shadcn Button source
     ui/avatar.tsx              local shadcn Avatar source
@@ -99,8 +99,24 @@ stagger, visible-only typing feedback, and pointer press feedback. Keyboard
 actions stay instant; reduced motion removes movement and stagger. See
 [`docs/concierge-widget.md`](docs/concierge-widget.md) for timings and behavior.
 
-The copy control uses a small outlined icon with a compact mint hover/focus tile
-inside its larger touch target, spaced below the message bubble.
+Pending replies show animated dots and “Preparing your reply…”. Completed
+assistant replies show the guest's local time under the bubble. Times persist
+across tabs and reloads; legacy history without a recorded time stays undated.
+
+Optional reCAPTCHA v3 verification uses `VITE_RECAPTCHA_SITE_KEY` and
+`VITE_RECAPTCHA_ENDPOINT`, or the widget props `recaptcha_site_key` and
+`recaptcha_endpoint` (props override the environment defaults). Both values
+must be present to enable it. The supplied localhost values are configured in
+ignored `.env.development.wbe.local`; deployment environments supply their own
+values. `.env.example` documents the two names.
+
+On each send, the widget loads/reuses Google's SDK, waits for readiness,
+executes action `usermessage`, and posts `{ "token": "…" }` to the configured
+endpoint. HTTP success and JSON `success: true` are required. The complete check
+has a ten-second timeout. Failure restores the draft with retry feedback,
+including text added while checking. Restart, disconnect and unmount invalidate
+pending checks. Tests mock Google and the verifier; the live service is not
+contacted by the browser suite.
 
 On screens up to 640px wide, and touch-device landscape layouts up to 1024px wide
 and 500px high, the open panel fills the visible viewport edge to edge. Safe-area
@@ -115,9 +131,9 @@ Install the test browsers once with `npx playwright install chromium webkit`,
 then run `npm run test:ui`. The suite starts its own Vite host and a local
 Socket.IO fixture on ports 4180 and 4181. It uses test identifiers and a test
 signing key, independent of the supplied environment files and live backend.
-The suite has 52 Chromium/WebKit checks: 10 guest-page checks, 26 widget checks,
-and 16 motion checks. They cover navigation, starter questions, booking, restart/expiry,
-mobile layout, drafts, Markdown, clipboard (Chromium), errors, history, and reduced
+The suite has 80 Chromium/WebKit checks: 10 guest-page checks, 26 widget checks,
+16 motion checks and 28 feedback/verification checks. They cover navigation, starter questions, booking, restart/expiry,
+mobile layout, drafts, Markdown, timestamps, verification, errors, history, and reduced
 motion. Screenshots and failure traces are saved under ignored `test-results/`.
 Real device software-keyboard behavior still needs a mobile Safari/Chrome check.
 
@@ -125,14 +141,20 @@ Real device software-keyboard behavior still needs a mobile Safari/Chrome check.
 
 - Signed HS256 JWT with existing client data, booking token, and one-hour expiry.
 - Socket.IO `authenticate` and `chat` payloads.
-- Existing response, error, expired, restart, and host trigger flows.
+- Response, error/severe, expired, restart, and host trigger flows.
 - Existing `chat_auth_token`, `chat_history`, and `chat_tab_id` storage keys.
-- Restoration of old history records; new records add an ID for deduplication.
+- Restoration of old history records; new records carry IDs and creation timestamps.
 - SharedWorker synchronization across tabs, plus dedicated Worker fallback.
 - Server logout handling and session expiry.
 - Bubbling `qikres/chatbot/<trigger>` custom events and Markdown `#restart` links.
 
 The backend returns complete messages, so the UI displays a waiting indicator until a response arrives. Backend cancellation, regeneration, editing, and attachments are not exposed because the current server contract does not implement them.
+
+Consecutive identical incoming chat events are suppressed by type and raw
+message before fanout and persistence. A new guest message, different event,
+or session reset starts a fresh comparison. `severe` uses the same display and
+session handling as `error`. Known error codes receive the reference wording;
+unknown errors display the `Unknown error:` fallback.
 
 ## Migration details
 

@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "./ui/alert-dialog";
 import { useChatWorker } from "../hooks/use-chat-worker";
+import { formatChatError } from "../lib/chat-errors";
 import { type ChatRecord } from "../lib/chat-history";
 import { useChatMotion } from "../hooks/use-chat-motion";
 import { ChatMotionContext } from "../lib/chat-motion";
@@ -15,7 +16,9 @@ import "../custom.css";
 const convertMessage = (message: ChatRecord): ThreadMessageLike => ({
     id: message.id,
     role: message.type === "usermessage" ? "user" : "assistant",
-    content: [{ type: "text", text: message.message }],
+    content: [{ type: "text", text: message.type === "error" || message.type === "severe" ? formatChatError(message.message) : message.message }],
+    createdAt: message.timestamp === undefined ? undefined : new Date(message.timestamp),
+    metadata: { custom: { timestamp: message.timestamp } },
 });
 
 /** Same component props and React/ReactDOM exports as the original embeddable widget. */
@@ -29,12 +32,12 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const [confirmRestart, setConfirmRestart] = useState(false);
     const panelID = useId();
     const titleID = useId();
-    const { messages, isRunning, status, send, restart } = useChatWorker(props || {}, widgetRef);
+    const { messages, isRunning, isVerifying, verificationError, status, send, restart } = useChatWorker(props || {}, widgetRef);
     const runtime = useExternalStoreRuntime({
         messages,
         isRunning,
         isDisabled: status === "expired",
-        isSendDisabled: status !== "connected",
+        isSendDisabled: status !== "connected" || isVerifying,
         convertMessage,
         onNew: async (message: AppendMessage) => {
             const text = message.content.map((part) => part.type === "text" ? part.text : "").join("");
@@ -99,7 +102,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                         </div>
                     ) : null}
                     <ChatMotionContext.Provider value={motion}>
-                        <Thread isRunning={isRunning} expired={status === "expired"} />
+                        <Thread isRunning={isRunning} expired={status === "expired"} verificationError={verificationError} />
                     </ChatMotionContext.Provider>
                 </section>
                 <Button ref={launcherRef} className="chat-launcher" size="icon" onClick={(event) => toggle(undefined, event.detail > 0)} aria-label={open ? "Hide chat" : "Open chat"} aria-expanded={open} aria-controls={panelID}>

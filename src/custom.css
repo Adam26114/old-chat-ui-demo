@@ -72,12 +72,6 @@
 .ubiq-chat .chat-bubble { padding: 13px 15px; border-radius: 17px; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
 .ubiq-chat .chat-bubble-user { max-width: 85%; border-bottom-right-radius: 5px; white-space: pre-wrap; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
 .ubiq-chat .chat-bubble-assistant { border: 1px solid hsl(var(--border)); border-top-left-radius: 5px; background: hsl(var(--background)); }
-.ubiq-chat .chat-message-actions { display: flex; min-height: 44px; margin-top: 4px; }
-.ubiq-chat .chat-copy { position: relative; width: 44px; height: 44px; border-radius: 6px; color: hsl(var(--muted-foreground)); }
-.ubiq-chat .chat-copy::before { content: ""; position: absolute; top: 50%; left: 50%; width: 24px; height: 24px; transform: translate(-50%, -50%); border-radius: 6px; pointer-events: none; }
-.ubiq-chat .chat-message-actions .chat-copy:is(:hover, :focus-visible) { background: transparent; color: hsl(var(--primary)); }
-.ubiq-chat .chat-copy:is(:hover, :focus-visible)::before { background: hsl(var(--accent)); }
-.ubiq-chat .chat-copy svg { position: relative; width: 16px; height: 16px; }
 .ubiq-chat .chat-suggestions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 10px 0 8px; }
 .ubiq-chat .chat-suggestions-label { margin-bottom: 2px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .ubiq-chat .chat-suggestion { min-height: 44px; justify-content: space-between; padding: 10px 14px; border-radius: 12px; border-color: hsl(var(--border)); background: hsl(var(--background) / 65%); color: hsl(var(--primary)); font-size: 13px; }
@@ -136,3 +130,6 @@
 @media (prefers-reduced-motion: reduce) {
     .ubiq-chat button[class], .ubiq-chat .chat-composer { transition: none; }
 }
+
+.ubiq-chat .chat-message-time { display: block; margin-top: 7px; padding: 0 2px; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.ubiq-chat .chat-verification-error { margin-top: 8px; font-size: 12px; color: #9f3434; }

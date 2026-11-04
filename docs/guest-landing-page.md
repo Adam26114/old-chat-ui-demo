@@ -52,11 +52,11 @@ and [Singapore Cable Car](https://mountfaberleisure.com/attraction/singapore-cab
 ## Regression coverage
 
 The browser fixture uses the actual guest page and widget with controlled local
-Socket.IO configuration. The suite contains 52 Chromium/WebKit checks
-(10 page checks, 26 widget checks, 16 motion checks). Page checks cover section navigation, mobile
+Socket.IO configuration. The suite contains 80 Chromium/WebKit checks
+(10 page checks, 26 widget checks, 16 motion checks, 28 feedback checks). Page checks cover section navigation, mobile
 menu Escape/focus, booking in a new tab, booking fallback, repeated concierge actions,
 draft retention, missing chat configuration, and 320px/390px/640px page bounds.
-The original widget checks continue to cover messaging, copy, history, restart,
+The original widget checks continue to cover messaging, timestamps, history, restart,
 expiry, responsive sizing, and host-style isolation.
 
 Page actions open the widget through its private launcher selector, guarded by
