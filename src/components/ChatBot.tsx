@@ -1,10 +1,14 @@
-import React, { useId, useMemo, useRef, useState } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { AssistantRuntimeProvider, useExternalStoreRuntime, type AppendMessage, type ThreadMessageLike } from "@assistant-ui/react";
 import { ArrowUpRight, BellRing, RotateCcw, X } from "lucide-react";
 import { Thread } from "./assistant-ui/thread";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
+import { Kbd, KbdGroup } from "./ui/kbd";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { BotSquare } from "./icons/bot-square";
+import { BotSquare as BotSquareFill } from "./icons/fill/bot-square";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "./ui/alert-dialog";
 import { useChatWorker } from "../hooks/use-chat-worker";
 import { formatChatError } from "../lib/chat-errors";
@@ -52,6 +56,22 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     });
     const title = props?.chatbox_title || "Guest assistant";
     const statusText = status === "connected" ? "Ready to help with your stay" : status === "expired" ? "Session expired · restart to continue" : status === "disconnected" ? "Reconnecting…" : "Connecting…";
+    const shortcutModifier = /^(Mac|iPhone|iPad|iPod)/.test(navigator.platform) ? "⌘" : "Ctrl";
+    const LauncherIcon = open ? BotSquareFill : BotSquare;
+
+    useEffect(() => {
+        if (open) return;
+        const handleShortcut = (event: KeyboardEvent) => {
+            if (event.defaultPrevented || event.repeat || event.isComposing || event.key.toLowerCase() !== "k"
+                || event.metaKey === event.ctrlKey || event.altKey || event.shiftKey) return;
+            if (event.composedPath().some((target) => target instanceof HTMLElement
+                && (target.isContentEditable || target.matches('input, textarea, select, [role="textbox"], dialog[open], [aria-modal="true"]')))) return;
+            event.preventDefault();
+            toggle(true, false);
+        };
+        window.addEventListener("keydown", handleShortcut);
+        return () => window.removeEventListener("keydown", handleShortcut);
+    }, [open, toggle]);
 
     const startNewChat = () => {
         runtime.thread.composer.setText("");
@@ -111,9 +131,30 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                         <Thread isRunning={isRunning} isVerifying={isVerifying} expired={status === "expired"} verificationError={verificationError} />
                     </ChatMotionContext.Provider>
                 </section>
-                <Button ref={launcherRef} className="chat-launcher" size="icon" onClick={(event) => toggle(undefined, event.detail > 0)} aria-label={open ? "Hide chat" : "Open chat"} aria-expanded={open} aria-controls={panelID}>
-                    {open ? <X aria-hidden="true" /> : <BellRing aria-hidden="true" />}
-                </Button>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                ref={launcherRef}
+                                className="chat-launcher"
+                                size="icon"
+                                onClick={(event) => toggle(undefined, event.detail > 0)}
+                                aria-label={open ? "Hide chat" : "Open chat"}
+                                aria-expanded={open}
+                                aria-controls={panelID}
+                                aria-keyshortcuts={open ? undefined : "Meta+K Control+K"}
+                            >
+                                <LauncherIcon aria-hidden="true" />
+                            </Button>
+                        </TooltipTrigger>
+                        {!present && (
+                            <TooltipContent className="flex items-center gap-2" side="left" sideOffset={10}>
+                                Open chat
+                                <KbdGroup><Kbd>{shortcutModifier}</Kbd>+<Kbd>K</Kbd></KbdGroup>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
                 <AlertDialog open={confirmRestart} onOpenChange={setConfirmRestart}>
                     <AlertDialogContent container={widgetRef.current} onCloseAutoFocus={(event) => {
                         event.preventDefault();

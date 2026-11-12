@@ -6,6 +6,89 @@ async function openChat(page: Page, query = "") {
     await page.getByRole("button", { name: "Open chat", exact: true }).click();
 }
 
+for (const [platform, shortcut, modifier] of [["MacIntel", "Meta+K", "⌘"], ["Win32", "Control+K", "Ctrl"]]) {
+    test(`the launcher shows the ${modifier} shortcut and switches between rounded icons`, async ({ page }) => {
+        await page.addInitScript((platform) => Object.defineProperty(navigator, "platform", { get: () => platform }), platform);
+        await page.goto("/tests/fixtures/index.html");
+        const launcher = page.getByRole("button", { name: "Open chat", exact: true });
+        const hostButton = page.getByRole("button", { name: "Hotel page button" });
+        const tooltip = page.locator('.ubiq-chat [data-slot="tooltip-content"]');
+        const keycaps = tooltip.locator('[data-slot="kbd-group"]').first().locator("kbd");
+        await expect(launcher).toHaveAttribute("aria-keyshortcuts", "Meta+K Control+K");
+        await expect(launcher.locator("svg")).toHaveAttribute("stroke-linecap", "round");
+        await expect(launcher.locator("svg")).toHaveAttribute("stroke", "currentColor");
+        await launcher.hover();
+        await expect(tooltip).toBeInViewport();
+        await expect(tooltip).toContainText("Open chat");
+        await expect(keycaps).toHaveText([modifier, "K"]);
+
+        await hostButton.click();
+        await expect(tooltip).toHaveCount(0);
+        await launcher.focus();
+        await expect(launcher).toBeFocused();
+        await expect(tooltip).toBeVisible();
+        await expect(keycaps).toHaveText([modifier, "K"]);
+
+        await hostButton.focus();
+        await page.keyboard.press(shortcut);
+        const activeLauncher = page.getByRole("button", { name: "Hide chat", exact: true });
+        const composer = page.getByRole("textbox", { name: "Message", exact: true });
+        await expect(activeLauncher.locator('svg path[fill="currentColor"]')).toHaveCount(1);
+        await expect(tooltip).toHaveCount(0);
+        await expect(composer).toBeFocused();
+        await composer.fill("Keep this draft");
+        await page.keyboard.press(shortcut);
+        await expect(composer).toHaveValue("Keep this draft");
+        await page.keyboard.press("Escape");
+        await expect(launcher).toBeFocused();
+        await expect(launcher.locator("svg")).toHaveAttribute("stroke", "currentColor");
+    });
+}
+
+test("the chat shortcut leaves editable fields, dialogs, and claimed events to the host", async ({ page }) => {
+    await page.goto("/tests/fixtures/index.html?unmount=yes");
+    await expect(page.getByText("Ready to help with your stay", { exact: true })).toBeAttached();
+    const results = await page.evaluate(() => {
+        const dispatch = (target: HTMLElement, overrides: KeyboardEventInit = {}) => target.dispatchEvent(new KeyboardEvent("keydown", {
+            key: "k", ctrlKey: true, bubbles: true, cancelable: true, composed: true, ...overrides,
+        }));
+        const input = document.createElement("input");
+        const editor = document.createElement("div");
+        editor.contentEditable = "true";
+        const child = editor.appendChild(document.createElement("span"));
+        const dialog = document.createElement("dialog");
+        const dialogButton = dialog.appendChild(document.createElement("button"));
+        const hostButton = document.getElementById("host-button")!;
+        document.body.append(input, editor, dialog);
+        dialog.showModal();
+        const dialogKeptShortcut = dispatch(dialogButton);
+        dialog.close();
+        const ignored = [dispatch(input), dispatch(child), dispatch(hostButton, { shiftKey: true }),
+            dispatch(hostButton, { repeat: true }), dispatch(hostButton, { isComposing: true })];
+        hostButton.addEventListener("keydown", (event) => event.preventDefault(), { once: true });
+        const hostClaimedShortcut = !dispatch(hostButton);
+        return { dialogKeptShortcut, ignored, hostClaimedShortcut };
+    });
+    expect(results).toEqual({ dialogKeptShortcut: true, ignored: [true, true, true, true, true], hostClaimedShortcut: true });
+    await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Unmount chat", exact: true }).click();
+    await expect(page.locator(".ubiq-chat")).toHaveCount(0);
+    expect(await page.locator("#host-button").evaluate((button) => button.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "k", ctrlKey: true, bubbles: true, cancelable: true,
+    })))).toBe(true);
+});
+
+test("the chat shortcut opens the full-screen phone panel and restores launcher focus", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/tests/fixtures/index.html");
+    await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeVisible();
+    await page.keyboard.press("Control+K");
+    await expect(page.getByRole("button", { name: "Close chat", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Hide chat", exact: true })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeFocused();
+});
+
 test("a reconnecting guest can keep a draft and send after the connection recovers", async ({ page }) => {
     await openChat(page);
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
