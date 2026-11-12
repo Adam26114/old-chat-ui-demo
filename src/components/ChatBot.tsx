@@ -145,7 +145,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                         <TooltipTrigger asChild>
                             <Button
                                 ref={launcherRef}
-                                className="chat-launcher"
+                                className="chat-launcher [&_svg]:size-[24px]"
                                 size="icon"
                                 onClick={(event) => toggle(undefined, event.detail > 0)}
                                 aria-label={launcherLabel}

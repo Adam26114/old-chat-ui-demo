@@ -17,6 +17,8 @@ for (const [platform, shortcut, modifier] of [["MacIntel", "Meta+K", "⌘"], ["W
         await expect(launcher).toHaveAttribute("aria-keyshortcuts", "Meta+K Control+K");
         await expect(launcher.locator("svg")).toHaveAttribute("stroke-linecap", "round");
         await expect(launcher.locator("svg")).toHaveAttribute("stroke", "currentColor");
+        await expect(launcher.locator("svg")).toHaveCSS("width", "24px");
+        await expect(launcher.locator("svg")).toHaveCSS("height", "24px");
         await launcher.hover();
         await expect(tooltip).toBeInViewport();
         await expect(tooltip).toContainText("Open chat");
@@ -34,6 +36,8 @@ for (const [platform, shortcut, modifier] of [["MacIntel", "Meta+K", "⌘"], ["W
         const activeLauncher = page.getByRole("button", { name: "Hide chat", exact: true });
         const composer = page.getByRole("textbox", { name: "Message", exact: true });
         await expect(activeLauncher.locator('svg path[fill="currentColor"]')).toHaveCount(1);
+        await expect(activeLauncher.locator("svg")).toHaveCSS("width", "24px");
+        await expect(activeLauncher.locator("svg")).toHaveCSS("height", "24px");
         await expect(activeLauncher).toHaveAttribute("aria-keyshortcuts", "Meta+K Control+K");
         await expect(tooltip).toHaveCount(0);
         await expect(composer).toBeFocused();
