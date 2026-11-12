@@ -71,6 +71,9 @@
 .ubiq-chat .chat-message-body { min-width: 0; max-width: calc(100% - 38px); flex: 1; }
 .ubiq-chat .chat-bubble { padding: 13px 15px; border-radius: 17px; font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
 .ubiq-chat .chat-bubble-user { max-width: 85%; border-bottom-right-radius: 5px; white-space: pre-wrap; background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+.ubiq-chat .chat-message-user[data-verifying="true"] { position: relative; }
+.ubiq-chat .chat-message-user[data-verifying="true"] .chat-bubble-user { background: hsl(var(--primary) / 80%); }
+.ubiq-chat .chat-message-verifying { position: absolute; top: 100%; right: 2px; margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.4; }
 .ubiq-chat .chat-bubble-assistant { border: 1px solid hsl(var(--border)); border-top-left-radius: 5px; background: hsl(var(--background)); }
 .ubiq-chat .chat-suggestions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 10px 0 8px; }
 .ubiq-chat .chat-suggestions-label { margin-bottom: 2px; font-size: 12px; color: hsl(var(--muted-foreground)); }

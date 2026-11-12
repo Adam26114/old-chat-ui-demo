@@ -45,13 +45,19 @@ function StarterQuestions() {
     );
 }
 
-const UserMessage = () => (
-    <MessagePrimitive.Root className="chat-message chat-message-user" data-message-role="user">
-        <div className="chat-bubble chat-bubble-user">
-            <MessagePrimitive.Content />
-        </div>
-    </MessagePrimitive.Root>
-);
+const verifyingLabel = "Verifying…";
+
+function UserMessage() {
+    const isVerifying = useAuiState((state) => state.message.metadata.isOptimistic === true);
+    return (
+        <MessagePrimitive.Root className="chat-message chat-message-user" data-message-role="user" data-verifying={isVerifying}>
+            <div className="chat-bubble chat-bubble-user">
+                <MessagePrimitive.Content />
+            </div>
+            {isVerifying ? <span className="chat-message-verifying" aria-hidden="true">{verifyingLabel}</span> : null}
+        </MessagePrimitive.Root>
+    );
+}
 
 function AssistantMessage() {
     const hasText = useAuiState((state) => state.message.content.some((part) => part.type === "text" && part.text.trim().length > 0));
@@ -105,7 +111,7 @@ function TypingIndicator() {
     return <div role="status" className="chat-waiting"><div ref={ref} className="chat-typing" aria-hidden="true"><span /><span /><span /></div><span>Preparing your reply…</span></div>;
 }
 
-export function Thread({ isRunning, expired, verificationError }: { isRunning: boolean; expired: boolean; verificationError: string | null }) {
+export function Thread({ isRunning, isVerifying, expired, verificationError }: { isRunning: boolean; isVerifying: boolean; expired: boolean; verificationError: string | null }) {
     return (
         <ThreadPrimitive.Root className="chat-thread">
             <div className="chat-scroll-container">
@@ -125,6 +131,7 @@ export function Thread({ isRunning, expired, verificationError }: { isRunning: b
                     <Button variant="outline" size="icon" className="chat-scroll-latest disabled:invisible" aria-label="Scroll to latest message"><ArrowDown aria-hidden="true" /></Button>
                 </ThreadPrimitive.ScrollToBottom>
             </div>
+            <span className="sr-only" role="status">{isVerifying ? verifyingLabel : ""}</span>
             <div className="chat-composer-footer">
                 <ComposerPrimitive.Root className="chat-composer">
                     <ComposerPrimitive.Input

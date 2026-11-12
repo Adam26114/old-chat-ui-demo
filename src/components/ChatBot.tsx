@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from "react";
+import React, { useId, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { AssistantRuntimeProvider, useExternalStoreRuntime, type AppendMessage, type ThreadMessageLike } from "@assistant-ui/react";
 import { ArrowUpRight, BellRing, RotateCcw, X } from "lucide-react";
@@ -13,12 +13,14 @@ import { useChatMotion } from "../hooks/use-chat-motion";
 import { ChatMotionContext } from "../lib/chat-motion";
 import "../custom.css";
 
-const convertMessage = (message: ChatRecord): ThreadMessageLike => ({
+type ThreadRecord = ChatRecord & { isOptimistic?: true };
+
+const convertMessage = (message: ThreadRecord): ThreadMessageLike => ({
     id: message.id,
     role: message.type === "usermessage" ? "user" : "assistant",
     content: [{ type: "text", text: message.type === "error" || message.type === "severe" ? formatChatError(message.message) : message.message }],
     createdAt: message.timestamp === undefined ? undefined : new Date(message.timestamp),
-    metadata: { custom: { timestamp: message.timestamp } },
+    metadata: { isOptimistic: message.isOptimistic, custom: { timestamp: message.timestamp } },
 });
 
 /** Same component props and React/ReactDOM exports as the original embeddable widget. */
@@ -32,9 +34,13 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const [confirmRestart, setConfirmRestart] = useState(false);
     const panelID = useId();
     const titleID = useId();
-    const { messages, isRunning, isVerifying, verificationError, status, send, restart } = useChatWorker(props || {}, widgetRef);
+    const { messages, isRunning, verifyingMessage, verificationError, status, send, restart } = useChatWorker(props || {}, widgetRef);
+    const isVerifying = verifyingMessage !== null;
+    const threadMessages = useMemo<ThreadRecord[]>(() => verifyingMessage
+        ? [...messages, { ...verifyingMessage, isOptimistic: true }]
+        : messages, [messages, verifyingMessage]);
     const runtime = useExternalStoreRuntime({
-        messages,
+        messages: threadMessages,
         isRunning,
         isDisabled: status === "expired",
         isSendDisabled: status !== "connected" || isVerifying,
@@ -102,7 +108,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                         </div>
                     ) : null}
                     <ChatMotionContext.Provider value={motion}>
-                        <Thread isRunning={isRunning} expired={status === "expired"} verificationError={verificationError} />
+                        <Thread isRunning={isRunning} isVerifying={isVerifying} expired={status === "expired"} verificationError={verificationError} />
                     </ChatMotionContext.Provider>
                 </section>
                 <Button ref={launcherRef} className="chat-launcher" size="icon" onClick={(event) => toggle(undefined, event.detail > 0)} aria-label={open ? "Hide chat" : "Open chat"} aria-expanded={open} aria-controls={panelID}>

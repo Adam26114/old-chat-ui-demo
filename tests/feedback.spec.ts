@@ -34,6 +34,10 @@ async function submit(page: Page, text: string) {
     return input;
 }
 
+function guestMessage(page: Page, text: string) {
+    return page.locator('[data-message-role="user"]').filter({ has: page.getByText(text, { exact: true }) });
+}
+
 test("pending state has only preparing feedback, then a dated real reply", async ({ page }) => {
     await open(page);
     await expect(page.locator('.chat-panel time')).toHaveCount(1);
@@ -117,25 +121,62 @@ test("absent or partial verification settings send without loading Google", asyn
     const initial = await sentCount(request);
     for (const mode of ["none", "site", "endpoint"]) {
         await open(page, `?captcha=${mode}`);
-        await submit(page, `A question with ${mode} configuration`);
-        await expect(page.getByRole("table")).toBeVisible();
+        const text = `A question with ${mode} configuration`;
+        await submit(page, text);
+        await expect(guestMessage(page, text)).toHaveAttribute("data-verifying", "false");
+        await expect(page.locator('[data-message-role="assistant"]').getByText(text, { exact: true })).toBeVisible();
     }
     expect(await sentCount(request)).toBe(initial + 3);
     expect(sdkRequests).toBe(0);
 });
 
-test("verified sends use the expected action and fresh token with one socket send", async ({ page, request }) => {
+test("a pending bubble stays local and becomes the same sent bubble after verification", async ({ page, request, context }) => {
+    let approve!: () => void;
+    const gate = new Promise<void>((resolve) => { approve = resolve; });
     const tokens: string[] = [];
     await verifier(page, async (route) => {
         tokens.push(route.request().postDataJSON().token);
+        await gate;
         await route.fulfill({ json: { success: true }, headers: cors });
     });
     await open(page, "?captcha=both");
+    const other = await context.newPage();
+    await open(other, "?captcha=both");
     const initial = await sentCount(request);
-    await submit(page, "Verified question");
-    await page.getByRole("button", { name: "Send message", exact: true }).dispatchEvent("click");
+    const text = "Take your time";
+    const bubble = guestMessage(page, text);
+    const sendButton = page.getByRole("button", { name: "Send message", exact: true });
+    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    await input.fill(text);
+    await sendButton.click();
+    try {
+        await expect.poll(() => tokens.length).toBe(1);
+        await expect(bubble.getByText("Verifying…", { exact: true })).toBeVisible();
+        await expect(input).toHaveValue("");
+        await expect(page.getByText("Preparing your reply…", { exact: true })).toHaveCount(0);
+        await expect(guestMessage(other, text)).toHaveCount(0);
+        expect(await sentCount(request)).toBe(initial);
+        expect(await page.evaluate((message) => localStorage.getItem("chat_history")?.includes(message) ?? false, text)).toBe(false);
+        await input.fill("A follow-up");
+        await expect(sendButton).toBeDisabled();
+        await input.press("Enter");
+        await expect(input).toHaveValue("A follow-up");
+        const pendingBubble = await bubble.elementHandle();
+        const pendingColor = await bubble.locator(".chat-bubble").evaluate((element) => getComputedStyle(element).backgroundColor);
+        approve();
+        await expect(bubble.getByText("Verifying…", { exact: true })).toHaveCount(0);
+        expect(await bubble.evaluate((element, previous) => element === previous, pendingBubble)).toBe(true);
+        expect(await bubble.locator(".chat-bubble").evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe(pendingColor);
+    } finally {
+        approve();
+    }
+    await expect(bubble).toHaveCount(1);
+    await expect(page.getByText("Preparing your reply…", { exact: true })).toBeVisible();
+    await expect(guestMessage(other, text)).toHaveCount(1);
     await expect(page.getByRole("table")).toBeVisible();
+    await expect(input).toHaveValue("A follow-up");
     expect(await sentCount(request)).toBe(initial + 1);
+    await expect.poll(() => page.evaluate((message) => JSON.parse(localStorage.getItem("chat_history") || "[]").filter((record: { type: string; message: string }) => record.type === "usermessage" && record.message === message).length, text)).toBe(1);
     expect(tokens).toEqual(["fixture-token-1"]);
     const actions = await page.evaluate(() => (window as unknown as { __captchaActions: string[] }).__captchaActions);
     expect(actions).toEqual(["usermessage"]);
@@ -154,9 +195,12 @@ test("a rejected verification restores the original draft plus new edits and can
     const initial = await sentCount(request);
     const input = await submit(page, "Original question");
     await expect.poll(() => tokens.length).toBe(1);
+    const bubble = guestMessage(page, "Original question");
+    await expect(bubble.getByText("Verifying…", { exact: true })).toBeVisible();
     await input.fill("A new detail");
     finish!();
     await expect(page.getByRole("alert")).toHaveText(failure);
+    await expect(bubble).toHaveCount(0);
     await expect(input).toHaveValue(/Original question[\s\S]*A new detail/);
     expect(await sentCount(request)).toBe(initial);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("chat_history") || "[]").some((record: { type: string }) => record.type === "usermessage"))).toBe(false);
@@ -211,6 +255,7 @@ test("token timeout restores the draft without sending", async ({ page, request 
     await page.clock.fastForward(10001);
     await expect(page.getByRole("alert")).toHaveText(failure);
     await expect(input).toHaveValue("A timed out question");
+    await expect(guestMessage(page, "A timed out question")).toHaveCount(0);
     expect(await sentCount(request)).toBe(initial);
 });
 
@@ -230,6 +275,8 @@ for (const action of ["restart", "disconnect", "unmount"] as const) {
         const initial = await sentCount(request);
         const input = await submit(page, "Never send this stale question");
         await expect.poll(() => received).toBe(true);
+        const bubble = guestMessage(page, "Never send this stale question");
+        await expect(bubble.getByText("Verifying…", { exact: true })).toBeVisible();
         if (action === "restart") {
             await page.getByRole("button", { name: "Restart chat", exact: true }).click();
             await page.getByRole("button", { name: "Start new chat", exact: true }).click();
@@ -242,6 +289,7 @@ for (const action of ["restart", "disconnect", "unmount"] as const) {
             await page.getByRole("button", { name: "Unmount chat", exact: true }).click();
             await expect(page.locator(".ubiq-chat")).toHaveCount(0);
         }
+        await expect(bubble).toHaveCount(0);
         finish!();
         await expect.poll(() => responseFinished).toBe(true);
         if (action !== "unmount") await expect(page.getByText("Ready to help with your stay", { exact: true })).toBeVisible();

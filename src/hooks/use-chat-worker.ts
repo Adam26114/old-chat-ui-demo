@@ -38,7 +38,7 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
     const clientID = useRef("");
     const connectionStatus = useRef<ConnectionStatus>("connecting");
     const verification = useRef<AbortController | null>(null);
-    const [isVerifying, setIsVerifying] = useState(false);
+    const [verifyingMessage, setVerifyingMessage] = useState<ChatRecord | null>(null);
     const [verificationError, setVerificationError] = useState<string | null>(null);
     const siteKey = (props.recaptcha_site_key ?? import.meta.env.VITE_RECAPTCHA_SITE_KEY ?? "").trim();
     const endpoint = (props.recaptcha_endpoint ?? import.meta.env.VITE_RECAPTCHA_ENDPOINT ?? "").trim();
@@ -46,7 +46,7 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         const controller = verification.current;
         controller?.abort(reason);
         verification.current = null;
-        if (controller && reason !== "unmount") setIsVerifying(false);
+        if (controller && reason !== "unmount") setVerifyingMessage(null);
     }, []);
 
     useEffect(() => {
@@ -88,6 +88,7 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
             localStorage.setItem("chat_auth_token", authToken);
         }
         setMessages(readHistory());
+        setVerifyingMessage(null);
         connectionStatus.current = "connecting";
         setStatus("connecting");
         clientID.current = sessionStorage.getItem("chat_tab_id") || uuidv4();
@@ -207,39 +208,44 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
 
     const send = useCallback(async (text: string) => {
         const worker = workerRef.current;
-        if (!text.trim() || !worker || pendingRef.current || verification.current || connectionStatus.current !== "connected") {
+        const trimmed = text.trim();
+        if (!trimmed || !worker || pendingRef.current || verification.current || connectionStatus.current !== "connected") {
             throw new MessageNotSentError();
         }
-        const controller = new AbortController();
-        verification.current = controller;
-        setIsVerifying(true);
+        const record = newRecord("usermessage", trimmed);
+        const controller = siteKey && endpoint ? new AbortController() : null;
         setVerificationError(null);
-        const timeout = setTimeout(() => controller.abort("timeout"), 10000);
+        if (controller) {
+            verification.current = controller;
+            setVerifyingMessage(record);
+        }
+        const timeout = controller ? setTimeout(() => controller.abort("timeout"), 10000) : undefined;
         try {
-            await verifyUserMessage(siteKey, endpoint, controller.signal);
-            controller.signal.throwIfAborted();
-            if (workerRef.current !== worker || connectionStatus.current !== "connected" || pendingRef.current) {
-                throw new MessageNotSentError();
+            if (controller) {
+                await verifyUserMessage(siteKey, endpoint, controller.signal);
+                controller.signal.throwIfAborted();
+                if (workerRef.current !== worker || connectionStatus.current !== "connected" || pendingRef.current) {
+                    throw new MessageNotSentError();
+                }
             }
-            const record = newRecord("usermessage", text.trim());
             worker.postMessage({ uuid: clientID.current, type: "usermessage", message: record.message, id: record.id, timestamp: record.timestamp });
             pendingRef.current = true;
             setIsRunning(true);
             setMessages((previous) => [...previous, record]);
             void appendHistory(record).catch(console.error);
         } catch {
-            if (["restart", "unmount", "configuration"].includes(controller.signal.reason)) return;
+            if (["restart", "unmount", "configuration"].includes(controller?.signal.reason)) return;
             const message = "We couldn’t verify your message. Please try again.";
             setVerificationError(message);
             throw new MessageNotSentError(message);
         } finally {
             clearTimeout(timeout);
-            if (verification.current === controller) {
+            if (controller && verification.current === controller) {
                 verification.current = null;
-                setIsVerifying(false);
+                setVerifyingMessage(null);
             }
         }
     }, [siteKey, endpoint]);
     const restart = useCallback(() => restartRef.current(), []);
-    return { messages, isRunning, isVerifying, verificationError, status, send, restart };
+    return { messages, isRunning, verifyingMessage, verificationError, status, send, restart };
 }
