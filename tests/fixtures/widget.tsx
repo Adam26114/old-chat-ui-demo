@@ -17,6 +17,7 @@ export function Fixture() {
         customer_id="test-hotel"
         property_code={options.get("greeting") === "none" ? "no-greeting" : "test-property"}
         chatbox_title="Hotel guest assistant"
+        avatar={options.get("avatar") === "yes" ? "/src/assets/favicon.svg" : undefined}
         booking_link={booking ? "http://127.0.0.1:4180/tests/fixtures/booking.html" : undefined}
     />
     ) : null}

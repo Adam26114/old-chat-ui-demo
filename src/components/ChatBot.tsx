@@ -1,14 +1,17 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { AssistantRuntimeProvider, useExternalStoreRuntime, type AppendMessage, type ThreadMessageLike } from "@assistant-ui/react";
-import { ArrowUpRight, BellRing, RotateCcw, X } from "lucide-react";
 import { Thread } from "./assistant-ui/thread";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { Kbd, KbdGroup } from "./ui/kbd";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { ArrowUpRight } from "./icons/arrow-up-right";
+import { BotCircle } from "./icons/bot-circle";
 import { BotSquare } from "./icons/bot-square";
 import { BotSquare as BotSquareFill } from "./icons/fill/bot-square";
+import { RotateCcw } from "./icons/rotate-ccw";
+import { X } from "./icons/x";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from "./ui/alert-dialog";
 import { useChatWorker } from "../hooks/use-chat-worker";
 import { formatChatError } from "../lib/chat-errors";
@@ -18,6 +21,7 @@ import { ChatMotionContext } from "../lib/chat-motion";
 import "../custom.css";
 
 type ThreadRecord = ChatRecord & { isOptimistic?: true };
+const chatKeyShortcuts = "Meta+K Control+K";
 
 const convertMessage = (message: ThreadRecord): ThreadMessageLike => ({
     id: message.id,
@@ -58,20 +62,25 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const statusText = status === "connected" ? "Ready to help with your stay" : status === "expired" ? "Session expired · restart to continue" : status === "disconnected" ? "Reconnecting…" : "Connecting…";
     const shortcutModifier = /^(Mac|iPhone|iPad|iPod)/.test(navigator.platform) ? "⌘" : "Ctrl";
     const LauncherIcon = open ? BotSquareFill : BotSquare;
+    const launcherLabel = open ? "Hide chat" : "Open chat";
 
     useEffect(() => {
-        if (open) return;
+        if (confirmRestart) return;
         const handleShortcut = (event: KeyboardEvent) => {
             if (event.defaultPrevented || event.repeat || event.isComposing || event.key.toLowerCase() !== "k"
                 || event.metaKey === event.ctrlKey || event.altKey || event.shiftKey) return;
-            if (event.composedPath().some((target) => target instanceof HTMLElement
-                && (target.isContentEditable || target.matches('input, textarea, select, [role="textbox"], dialog[open], [aria-modal="true"]')))) return;
+            const path = event.composedPath();
+            const insideWidget = widgetRef.current !== null && path.includes(widgetRef.current);
+            if (path.some((target) => target instanceof HTMLElement && (
+                target.matches('dialog[open], [aria-modal="true"]')
+                || (!insideWidget && (target.isContentEditable || target.matches('input, textarea, select, [role="textbox"]')))
+            ))) return;
             event.preventDefault();
-            toggle(true, false);
+            toggle(undefined, false);
         };
         window.addEventListener("keydown", handleShortcut);
         return () => window.removeEventListener("keydown", handleShortcut);
-    }, [open, toggle]);
+    }, [confirmRestart, toggle]);
 
     const startNewChat = () => {
         runtime.thread.composer.setText("");
@@ -108,7 +117,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                     <header className="chat-header">
                         <Avatar className="chat-header-avatar">
                             <AvatarImage src={props?.avatar} alt="" />
-                            <AvatarFallback className="bg-accent text-primary"><BellRing className="size-5" aria-hidden="true" /></AvatarFallback>
+                            <AvatarFallback className="bg-accent text-primary"><BotCircle className="size-5" /></AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
                             <h2 id={titleID} className="chat-title">{title}</h2>
@@ -118,7 +127,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                             </p>
                         </div>
                         <Button ref={restartButtonRef} variant="ghost" size="icon" className="chat-icon-button" onClick={requestRestart} aria-label="Restart chat" title="Restart chat"><RotateCcw aria-hidden="true" /></Button>
-                        <Button ref={closeButtonRef} variant="ghost" size="icon" className="chat-icon-button" onClick={(event) => toggle(false, event.detail > 0)} aria-label="Close chat" title="Close chat"><X aria-hidden="true" /></Button>
+                        <Button ref={closeButtonRef} variant="ghost" size="icon" className="chat-icon-button" onClick={(event) => toggle(false, event.detail > 0)} aria-label="Close chat" aria-keyshortcuts={chatKeyShortcuts} title="Close chat"><X aria-hidden="true" /></Button>
                     </header>
                     {props?.booking_link ? (
                         <div className="chat-guest-actions">
@@ -139,17 +148,17 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                                 className="chat-launcher"
                                 size="icon"
                                 onClick={(event) => toggle(undefined, event.detail > 0)}
-                                aria-label={open ? "Hide chat" : "Open chat"}
+                                aria-label={launcherLabel}
                                 aria-expanded={open}
                                 aria-controls={panelID}
-                                aria-keyshortcuts={open ? undefined : "Meta+K Control+K"}
+                                aria-keyshortcuts={chatKeyShortcuts}
                             >
                                 <LauncherIcon aria-hidden="true" />
                             </Button>
                         </TooltipTrigger>
-                        {!present && (
-                            <TooltipContent className="flex items-center gap-2" side="left" sideOffset={10}>
-                                Open chat
+                        {(!present || open) && (
+                            <TooltipContent className="chat-launcher-tooltip flex items-center gap-2" side="left" sideOffset={10}>
+                                {launcherLabel}
                                 <KbdGroup><Kbd>{shortcutModifier}</Kbd>+<Kbd>K</Kbd></KbdGroup>
                             </TooltipContent>
                         )}

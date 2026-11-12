@@ -7,7 +7,7 @@ async function openChat(page: Page, query = "") {
 }
 
 for (const [platform, shortcut, modifier] of [["MacIntel", "Meta+K", "⌘"], ["Win32", "Control+K", "Ctrl"]]) {
-    test(`the launcher shows the ${modifier} shortcut and switches between rounded icons`, async ({ page }) => {
+    test(`the launcher shows the ${modifier} shortcut and toggles chat with its draft intact`, async ({ page }) => {
         await page.addInitScript((platform) => Object.defineProperty(navigator, "platform", { get: () => platform }), platform);
         await page.goto("/tests/fixtures/index.html");
         const launcher = page.getByRole("button", { name: "Open chat", exact: true });
@@ -34,14 +34,22 @@ for (const [platform, shortcut, modifier] of [["MacIntel", "Meta+K", "⌘"], ["W
         const activeLauncher = page.getByRole("button", { name: "Hide chat", exact: true });
         const composer = page.getByRole("textbox", { name: "Message", exact: true });
         await expect(activeLauncher.locator('svg path[fill="currentColor"]')).toHaveCount(1);
+        await expect(activeLauncher).toHaveAttribute("aria-keyshortcuts", "Meta+K Control+K");
         await expect(tooltip).toHaveCount(0);
         await expect(composer).toBeFocused();
+        await activeLauncher.hover();
+        await expect(tooltip).toContainText("Hide chat");
+        await expect(keycaps).toHaveText([modifier, "K"]);
         await composer.fill("Keep this draft");
         await page.keyboard.press(shortcut);
+        await expect(composer).toBeHidden();
+        await expect(launcher).toBeFocused();
+        await expect(launcher.locator("svg")).toHaveAttribute("stroke", "currentColor");
+        await page.keyboard.press(shortcut);
+        await expect(composer).toBeFocused();
         await expect(composer).toHaveValue("Keep this draft");
         await page.keyboard.press("Escape");
         await expect(launcher).toBeFocused();
-        await expect(launcher.locator("svg")).toHaveAttribute("stroke", "currentColor");
     });
 }
 
@@ -53,6 +61,7 @@ test("the chat shortcut leaves editable fields, dialogs, and claimed events to t
             key: "k", ctrlKey: true, bubbles: true, cancelable: true, composed: true, ...overrides,
         }));
         const input = document.createElement("input");
+        input.id = "host-editor";
         const editor = document.createElement("div");
         editor.contentEditable = "true";
         const child = editor.appendChild(document.createElement("span"));
@@ -71,6 +80,17 @@ test("the chat shortcut leaves editable fields, dialogs, and claimed events to t
     });
     expect(results).toEqual({ dialogKeptShortcut: true, ignored: [true, true, true, true, true], hostClaimedShortcut: true });
     await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Open chat", exact: true }).click();
+    await expect(page.locator(".chat-message-avatar")).toBeVisible();
+    await page.locator("#host-editor").focus();
+    await page.keyboard.press("Control+K");
+    await expect(page.getByRole("button", { name: "Hide chat", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Restart chat", exact: true }).click();
+    const restartDialog = page.getByRole("alertdialog");
+    await expect(restartDialog).toBeVisible();
+    await page.keyboard.press("Control+K");
+    await expect(restartDialog).toBeVisible();
+    await restartDialog.getByRole("button", { name: "Keep chatting" }).click();
     await page.getByRole("button", { name: "Unmount chat", exact: true }).click();
     await expect(page.locator(".ubiq-chat")).toHaveCount(0);
     expect(await page.locator("#host-button").evaluate((button) => button.dispatchEvent(new KeyboardEvent("keydown", {
@@ -78,15 +98,35 @@ test("the chat shortcut leaves editable fields, dialogs, and claimed events to t
     })))).toBe(true);
 });
 
-test("the chat shortcut opens the full-screen phone panel and restores launcher focus", async ({ page }) => {
+test("the chat shortcut toggles the full-screen phone panel and restores launcher focus", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/tests/fixtures/index.html");
     await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeVisible();
     await page.keyboard.press("Control+K");
-    await expect(page.getByRole("button", { name: "Close chat", exact: true })).toBeFocused();
+    const close = page.getByRole("button", { name: "Close chat", exact: true });
+    await expect(close).toBeFocused();
+    await expect(close).toHaveAttribute("aria-keyshortcuts", "Meta+K Control+K");
     await expect(page.getByRole("button", { name: "Hide chat", exact: true })).toHaveCount(0);
-    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+K");
+    await expect(close).toBeHidden();
     await expect(page.getByRole("button", { name: "Open chat", exact: true })).toBeFocused();
+});
+
+test("chat uses the rounded Keyline icons and preserves a configured header logo", async ({ page }) => {
+    await openChat(page, "?greeting=none");
+    const botCircle = /^M12 2C17\.5228/;
+    await expect(page.locator(".chat-header-avatar svg path").first()).toHaveAttribute("d", botCircle);
+    await expect(page.locator(".chat-welcome-icon svg path").first()).toHaveAttribute("d", botCircle);
+    const sendIcon = page.getByRole("button", { name: "Send message", exact: true }).locator("svg path");
+    await expect(sendIcon).toHaveAttribute("d", /^M2\.7164 7\.7054L22 2/);
+    await expect(page.locator(".ubiq-chat svg.lucide")).toHaveCount(0);
+
+    await openChat(page, "?avatar=yes");
+    const headerAvatar = page.locator(".chat-header-avatar");
+    await expect(headerAvatar.locator("img")).toBeVisible();
+    await expect(headerAvatar.locator("svg")).toHaveCount(0);
+    await expect(page.locator(".chat-message-avatar svg path").first()).toHaveAttribute("d", botCircle);
+    await expect(page.locator(".ubiq-chat svg.lucide")).toHaveCount(0);
 });
 
 test("a reconnecting guest can keep a draft and send after the connection recovers", async ({ page }) => {

@@ -1,7 +1,10 @@
 import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { ArrowDown, ArrowRight, ArrowUp, BellRing } from "lucide-react";
 import { Button } from "../ui/button";
+import { ArrowDown } from "../icons/arrow-down";
+import { ArrowRight } from "../icons/arrow-right";
+import { BotCircle } from "../icons/bot-circle";
+import { Send } from "../icons/send";
 import remarkGfm from "remark-gfm";
 import { useContext, useRef } from "react";
 import { ChatMotionContext, enterChatElement, gsap, useGSAP } from "../../lib/chat-motion";
@@ -86,7 +89,7 @@ function AssistantReply() {
     }, { scope: ref, dependencies: [id], revertOnUpdate: true });
     return (
     <MessagePrimitive.Root ref={ref} className="chat-message chat-message-assistant" data-message-role="assistant">
-        <div className="chat-message-avatar" aria-hidden="true"><BellRing /></div>
+        <div className="chat-message-avatar" aria-hidden="true"><BotCircle /></div>
         <div className="chat-message-body">
             <div className="chat-bubble chat-bubble-assistant">
                 <MessagePrimitive.Content components={{ Text: MarkdownText }} />
@@ -118,7 +121,7 @@ export function Thread({ isRunning, isVerifying, expired, verificationError }: {
                 <ThreadPrimitive.Viewport className="chat-viewport" autoScroll>
                     <ThreadPrimitive.Empty>
                         <div className="chat-welcome">
-                            <div className="chat-welcome-icon" aria-hidden="true"><BellRing /></div>
+                            <div className="chat-welcome-icon" aria-hidden="true"><BotCircle /></div>
                             <h3>Make yourself at home.</h3>
                             <p>From finding a room to planning your stay, we're here to help.</p>
                         </div>
@@ -142,7 +145,7 @@ export function Thread({ isRunning, isVerifying, expired, verificationError }: {
                         addAttachmentOnPaste={false}
                     />
                     <ComposerPrimitive.Send asChild>
-                        <Button size="icon" className="chat-send" aria-label="Send message" title="Send message"><ArrowUp aria-hidden="true" /></Button>
+                        <Button size="icon" className="chat-send" aria-label="Send message" title="Send message"><Send /></Button>
                     </ComposerPrimitive.Send>
                 </ComposerPrimitive.Root>
                 {verificationError ? <p className="chat-verification-error" role="alert">{verificationError}</p> : null}
