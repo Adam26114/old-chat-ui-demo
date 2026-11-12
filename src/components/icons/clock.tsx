@@ -5,7 +5,7 @@ type IconProps = Omit<SVGProps<SVGSVGElement>, "children"> & {
   size?: number | string
 }
 
-export function ArrowRight({ size = 24, ...props }: IconProps) {
+export function Clock({ size = 24, ...props }: IconProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -21,7 +21,7 @@ export function ArrowRight({ size = 24, ...props }: IconProps) {
       focusable="false"
       {...props}
     >
-      <path d="M5 12H18.0587M12.1229 5L18.8261 11.5875C19.058 11.8153 19.058 12.1847 18.8261 12.4125L12.1229 19"/>
+      <path d="M12 6L12 12L17 12M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2Z"/>
     </svg>
   )
 }

@@ -22,7 +22,7 @@ export function useChatMotion({ widget, panel, launcher, closeControl }: Options
     const panelTween = useRef<gsap.core.Tween>();
     const pressed = useRef<HTMLElement>();
     const pressTweens = useRef(new Map<HTMLElement, gsap.core.Tween>());
-    const entries = useRef(new Set<gsap.core.Tween>());
+    const entries = useRef(new Set<gsap.core.Animation>());
     const seenReplies = useRef(new Set<string>());
     const { contextSafe } = useGSAP({ scope: widget });
 

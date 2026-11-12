@@ -12,6 +12,59 @@ async function opened(page: Page) {
     return panel;
 }
 
+test("the shortcut hint pops on quick hover and cleans up when the pointer leaves", async ({ page }) => {
+    const start = new Date();
+    await page.clock.install({ time: start });
+    await page.clock.pauseAt(new Date(start.getTime() + 1000));
+    await ready(page);
+    const launcher = page.locator(".chat-launcher");
+    const tooltip = page.locator(".chat-launcher-tooltip");
+    const surface = tooltip.locator(".chat-launcher-tooltip-surface");
+    const bounds = (await launcher.boundingBox())!;
+    const hoverLauncher = () => page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+
+    await hoverLauncher();
+    await page.clock.runFor(40);
+    expect(await tooltip.count()).toBe(0);
+    await page.mouse.move(10, 10);
+    await page.clock.runFor(120);
+    expect(await tooltip.count()).toBe(0);
+
+    await hoverLauncher();
+    await page.clock.runFor(110);
+    expect(await tooltip.count()).toBe(1);
+    await expect(tooltip).toHaveAttribute("data-state", "delayed-open");
+    expect(await surface.evaluate((element) => getComputedStyle(element).transform)).not.toBe("none");
+    await page.clock.runFor(55);
+    const scale = await surface.evaluate((element) => new DOMMatrix(getComputedStyle(element).transform).a);
+    expect(scale).toBeGreaterThan(1);
+    await page.mouse.move(10, 10, { steps: 4 });
+    await expect(tooltip).toHaveCount(0);
+
+    await hoverLauncher();
+    await page.clock.runFor(280);
+    await expect(tooltip).toBeInViewport();
+    await expect(surface).toHaveCSS("opacity", "1");
+    await expect(surface).toHaveCSS("transform", "none");
+});
+
+test("keyboard focus and reduced motion show a static shortcut hint", async ({ page }) => {
+    await ready(page);
+    const launcher = page.locator(".chat-launcher");
+    const tooltip = page.locator(".chat-launcher-tooltip");
+    const surface = tooltip.locator(".chat-launcher-tooltip-surface");
+    await launcher.focus();
+    await expect(tooltip).toHaveAttribute("data-state", "instant-open");
+    expect(await surface.evaluate((element) => getComputedStyle(element).transform)).toBe("none");
+    await page.getByRole("button", { name: "Hotel page button" }).focus();
+    await expect(tooltip).toHaveCount(0);
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await launcher.hover();
+    await expect(tooltip).toHaveAttribute("data-state", "delayed-open");
+    expect(await surface.evaluate((element) => [getComputedStyle(element).opacity, getComputedStyle(element).transform])).toEqual(["1", "none"]);
+});
+
 test("pointer toggles can reverse a closing panel without losing drafts or focus", async ({ page }) => {
     await ready(page);
     await page.getByRole("button", { name: "Open chat", exact: true }).click();

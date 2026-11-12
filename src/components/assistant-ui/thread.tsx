@@ -2,9 +2,11 @@ import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAuiState } fro
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { Button } from "../ui/button";
 import { ArrowDown } from "../icons/arrow-down";
-import { ArrowRight } from "../icons/arrow-right";
+import { BedDouble } from "../icons/bed-double";
 import { BotCircle } from "../icons/bot-circle";
+import { Clock } from "../icons/clock";
 import { Send } from "../icons/send";
+import { Sparkles } from "../icons/sparkles";
 import remarkGfm from "remark-gfm";
 import { useContext, useRef } from "react";
 import { ChatMotionContext, enterChatElement, gsap, useGSAP } from "../../lib/chat-motion";
@@ -12,9 +14,9 @@ import { ChatMotionContext, enterChatElement, gsap, useGSAP } from "../../lib/ch
 const MarkdownText = () => <MarkdownTextPrimitive className="chat-markdown" remarkPlugins={[remarkGfm]} smooth={false} />;
 
 const starterQuestions = [
-    { label: "Rooms & reservations", prompt: "Can you help me book a room?" },
-    { label: "Check-in & check-out", prompt: "What are the check-in and check-out times?" },
-    { label: "Hotel amenities", prompt: "What amenities are available at the hotel?" },
+    { Icon: BedDouble, label: "Rooms & reservations", prompt: "Can you help me book a room?" },
+    { Icon: Clock, label: "Check-in & check-out", prompt: "What are the check-in and check-out times?" },
+    { Icon: Sparkles, label: "Hotel amenities", prompt: "What amenities are available at the hotel?" },
 ];
 
 function StarterQuestions() {
@@ -30,9 +32,8 @@ function StarterQuestions() {
     }, { scope: ref, dependencies: [motion?.open] });
     if (!visible) return null;
     return (
-        <div ref={ref} className="chat-suggestions" aria-label="Starter questions">
-            <p className="chat-suggestions-label">A few ways we can help</p>
-            {starterQuestions.map(({ label, prompt }) => (
+        <div ref={ref} className="chat-suggestions" role="group" aria-label="Starter questions">
+            {starterQuestions.map(({ Icon, label, prompt }) => (
                 <ThreadPrimitive.Suggestion
                     key={label}
                     prompt={prompt}
@@ -41,7 +42,7 @@ function StarterQuestions() {
                     asChild
                     onClick={(event) => event.currentTarget.closest(".chat-panel")?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true })}
                 >
-                    <Button variant="outline" className="chat-suggestion">{label}<ArrowRight aria-hidden="true" /></Button>
+                    <Button variant="ghost" className="chat-suggestion hover:bg-transparent [&_svg]:size-[14px]"><Icon />{label}</Button>
                 </ThreadPrimitive.Suggestion>
             ))}
         </div>
@@ -127,13 +128,13 @@ export function Thread({ isRunning, isVerifying, expired, verificationError }: {
                         </div>
                     </ThreadPrimitive.Empty>
                     <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
-                    <StarterQuestions />
                     {isRunning ? <TypingIndicator /> : null}
                 </ThreadPrimitive.Viewport>
                 <ThreadPrimitive.ScrollToBottom asChild onClick={(event) => event.currentTarget.closest<HTMLElement>(".chat-panel")?.focus({ preventScroll: true })}>
                     <Button variant="outline" size="icon" className="chat-scroll-latest disabled:invisible" aria-label="Scroll to latest message"><ArrowDown aria-hidden="true" /></Button>
                 </ThreadPrimitive.ScrollToBottom>
             </div>
+            <StarterQuestions />
             <span className="sr-only" role="status">{isVerifying ? verifyingLabel : ""}</span>
             <div className="chat-composer-footer">
                 <ComposerPrimitive.Root className="chat-composer">

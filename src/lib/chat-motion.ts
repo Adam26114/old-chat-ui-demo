@@ -14,12 +14,12 @@ export type ChatMotion = {
     reduced: boolean;
     pageVisible: boolean;
     seenReplies: Set<string>;
-    entries: Set<gsap.core.Tween>;
+    entries: Set<gsap.core.Animation>;
 };
 
 export const ChatMotionContext = createContext<ChatMotion | null>(null);
 
-export function finishEntries(entries: Set<gsap.core.Tween>) {
+export function finishEntries(entries: Set<gsap.core.Animation>) {
     [...entries].forEach((tween) => tween.progress(1));
 }
 

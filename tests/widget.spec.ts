@@ -6,6 +6,30 @@ async function openChat(page: Page, query = "") {
     await page.getByRole("button", { name: "Open chat", exact: true }).click();
 }
 
+async function expectStarterQuestionsLayout(page: Page) {
+    const row = page.getByRole("group", { name: "Starter questions" });
+    await expect(row.getByRole("button")).toHaveText(["Rooms & reservations", "Check-in & check-out", "Hotel amenities"]);
+    await expect(row.locator('button svg[aria-hidden="true"]')).toHaveCount(3);
+    await expect.poll(() => row.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const thread = element.closest(".chat-thread");
+        const conversation = thread?.querySelector(".chat-scroll-container");
+        const footer = thread?.querySelector(".chat-composer-footer");
+        const buttons = [...element.querySelectorAll("button")];
+        if (!thread || !conversation || !footer || footer.contains(element) || buttons.length !== 3
+            || bounds.top < conversation.getBoundingClientRect().bottom || bounds.bottom > footer.getBoundingClientRect().top
+            || thread.scrollWidth > thread.clientWidth) return false;
+        const first = buttons[0].getBoundingClientRect();
+        const last = buttons[2].getBoundingClientRect();
+        if (first.width <= last.width) return false;
+        return buttons.every((button) => {
+            const target = button.getBoundingClientRect();
+            return Math.abs(target.top - first.top) < 1 && target.height >= 44 && target.width >= 44
+                && button.scrollWidth <= button.clientWidth;
+        });
+    })).toBe(true);
+}
+
 for (const [platform, shortcut, modifier] of [["MacIntel", "Meta+K", "⌘"], ["Win32", "Control+K", "Ctrl"]]) {
     test(`the launcher shows the ${modifier} shortcut and toggles chat with its draft intact`, async ({ page }) => {
         await page.addInitScript((platform) => Object.defineProperty(navigator, "platform", { get: () => platform }), platform);
@@ -186,18 +210,30 @@ test("phone sizing follows dynamic viewport units when visualViewport and resize
 test("starter questions remain after the greeting and can be edited before sending", async ({ page }, testInfo) => {
     await openChat(page);
     await expect(page.getByText("Welcome to", { exact: false })).toBeVisible();
+    await expectStarterQuestionsLayout(page);
     await page.getByRole("region", { name: "Hotel guest assistant" }).screenshot({ path: testInfo.outputPath("widget-desktop-welcome.png") });
-    await page.getByRole("button", { name: "Rooms & reservations", exact: true }).click();
+    const starters = page.getByRole("group", { name: "Starter questions" });
+    await starters.getByRole("button", { name: "Rooms & reservations", exact: true }).click();
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await expect(composer).toHaveValue("Can you help me book a room?");
     await expect(composer).toBeFocused();
     await expect(page.getByText("You asked:", { exact: false })).toHaveCount(0);
+    await expect(starters).toHaveCount(0);
+    await composer.clear();
+    await expect(starters).toBeVisible();
     await composer.fill("A deluxe room for two");
     await page.getByRole("button", { name: "Send message", exact: true }).click();
     await expect(page.getByText("Preparing your reply…", { exact: true })).toBeVisible();
     await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByText("A deluxe room for two", { exact: true })).toHaveCount(2);
-    await expect(page.getByRole("button", { name: "Rooms & reservations", exact: true })).toHaveCount(0);
+    await expect(starters).toHaveCount(0);
+    const primaryColors = await page.locator(".chat-bubble-user").evaluate((bubble) => {
+        const style = getComputedStyle(bubble);
+        return { background: style.backgroundColor, foreground: style.color };
+    });
+    const avatar = page.locator(".chat-message-avatar").first();
+    await expect(avatar).toHaveCSS("background-color", primaryColors.background);
+    await expect(avatar.locator("svg")).toHaveCSS("stroke", primaryColors.foreground);
     await page.getByRole("region", { name: "Hotel guest assistant" }).screenshot({ path: testInfo.outputPath("widget-desktop.png") });
 });
 
@@ -226,6 +262,7 @@ test("expired-session links confirm restart and Escape dismisses only the confir
     await composer.fill("Expire session");
     await page.getByRole("button", { name: "Send message", exact: true }).click();
     await expect(composer).toBeDisabled();
+    await expect(page.getByRole("group", { name: "Starter questions" })).toHaveCount(0);
     await page.getByRole("link", { name: "Yes, restart chat" }).click();
     const confirmation = page.getByRole("alertdialog", { name: "Start a new chat?" });
     await expect(confirmation).toBeVisible();
@@ -272,6 +309,10 @@ test("errors, multiline input, restored history, and host styles remain usable",
 test("small screens keep actions inside the panel and respect reduced motion", async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 320, height: 568 });
+    await page.addInitScript(() => localStorage.setItem("chat_history", JSON.stringify([{
+        type: "response",
+        message: "We can help with your stay.\n\n".repeat(30),
+    }])));
     await openChat(page);
     const panel = page.getByRole("region", { name: "Hotel guest assistant" });
     for (const width of [320, 390, 640]) {
@@ -279,8 +320,35 @@ test("small screens keep actions inside the panel and respect reduced motion", a
         await expect(page.getByRole("button", { name: "Close chat", exact: true })).toBeInViewport();
         await expect(page.getByRole("button", { name: "Send message", exact: true })).toBeInViewport();
         await expect.poll(() => panel.boundingBox()).toEqual({ x: 0, y: 0, width, height: 568 });
+        await expectStarterQuestionsLayout(page);
     }
-    await expect(page.getByRole("button", { name: "Rooms & reservations", exact: true })).toHaveCSS("transition-duration", "0s");
+    const starters = page.getByRole("group", { name: "Starter questions" });
+    await expect(starters.getByRole("button", { name: "Rooms & reservations", exact: true })).toHaveCSS("transition-duration", "0s");
+    await expect(page.getByText("Welcome to", { exact: false })).toBeInViewport();
+    const rowBounds = (await starters.boundingBox())!;
+    await page.locator(".chat-viewport").evaluate((viewport) => { viewport.scrollTop = 0; });
+    const latest = page.getByRole("button", { name: "Scroll to latest message", exact: true });
+    await expect(latest).toBeVisible();
+    const latestBounds = (await latest.boundingBox())!;
+    expect(latestBounds.y + latestBounds.height).toBeLessThanOrEqual(rowBounds.y);
+    await latest.click();
+    await expect(page.getByText("Welcome to", { exact: false })).toBeInViewport();
+    await expect.poll(() => starters.boundingBox()).toEqual(rowBounds);
+
+    await page.setViewportSize({ width: 320, height: 568 });
+    const amenities = starters.getByRole("button", { name: "Hotel amenities", exact: true });
+    await expect(amenities).not.toBeInViewport();
+    await expect.poll(() => starters.evaluate((row) => row.scrollWidth > row.clientWidth)).toBe(true);
+    await amenities.focus();
+    await expect(amenities).toBeInViewport({ ratio: 1 });
+    await expect.poll(() => starters.evaluate((row) => row.scrollLeft)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.scrollX)).toBe(0);
+    await amenities.press("Enter");
+    const composer = page.getByRole("textbox", { name: "Message", exact: true });
+    await expect(composer).toHaveValue("What amenities are available at the hotel?");
+    await expect(composer).toBeFocused();
+    await expect(starters).toHaveCount(0);
+    await expect(page.locator('[data-message-role="user"]')).toHaveCount(0);
 });
 
 test.describe("touch-device landscape", () => {

@@ -17,7 +17,7 @@ import { useChatWorker } from "../hooks/use-chat-worker";
 import { formatChatError } from "../lib/chat-errors";
 import { type ChatRecord } from "../lib/chat-history";
 import { useChatMotion } from "../hooks/use-chat-motion";
-import { ChatMotionContext } from "../lib/chat-motion";
+import { ChatMotionContext, chatEase, gsap, useGSAP, type ChatMotion } from "../lib/chat-motion";
 import "../custom.css";
 
 type ThreadRecord = ChatRecord & { isOptimistic?: true };
@@ -30,6 +30,31 @@ const convertMessage = (message: ThreadRecord): ThreadMessageLike => ({
     createdAt: message.timestamp === undefined ? undefined : new Date(message.timestamp),
     metadata: { isOptimistic: message.isOptimistic, custom: { timestamp: message.timestamp } },
 });
+
+function LauncherShortcutHint({ label, modifier, motion }: { label: string; modifier: string; motion: ChatMotion }) {
+    const surface = useRef<HTMLDivElement>(null);
+    useGSAP(() => {
+        const element = surface.current;
+        // Radix uses instant-open for focus and delayed-open for hover.
+        if (!element || motion.reduced || !motion.pageVisible || element.parentElement?.dataset.state !== "delayed-open") return;
+        const pop = gsap.timeline({ onComplete: () => { motion.entries.delete(pop); } })
+            .fromTo(element, { opacity: 0.55, scale: 0.94 }, { opacity: 1, scale: 1.03, duration: 0.1, ease: chatEase })
+            .to(element, { scale: 1, duration: 0.06, ease: "power2.out", clearProps: "opacity,transform" });
+        motion.entries.add(pop);
+        return () => { motion.entries.delete(pop); };
+    }, { scope: surface });
+
+    return (
+        <div
+            ref={surface}
+            className="chat-launcher-tooltip-surface pointer-events-none flex items-center gap-2 rounded-md bg-primary px-3 py-1.5"
+            style={{ transformOrigin: "var(--radix-tooltip-content-transform-origin, right center)" }}
+        >
+            {label}
+            <KbdGroup><Kbd>{modifier}</Kbd>+<Kbd>K</Kbd></KbdGroup>
+        </div>
+    );
+}
 
 /** Same component props and React/ReactDOM exports as the original embeddable widget. */
 function ChatBot(props: ChatbotProp | null | undefined) {
@@ -140,8 +165,8 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                         <Thread isRunning={isRunning} isVerifying={isVerifying} expired={status === "expired"} verificationError={verificationError} />
                     </ChatMotionContext.Provider>
                 </section>
-                <TooltipProvider>
-                    <Tooltip>
+                <TooltipProvider skipDelayDuration={0}>
+                    <Tooltip delayDuration={60}>
                         <TooltipTrigger asChild>
                             <Button
                                 ref={launcherRef}
@@ -157,9 +182,8 @@ function ChatBot(props: ChatbotProp | null | undefined) {
                             </Button>
                         </TooltipTrigger>
                         {(!present || open) && (
-                            <TooltipContent className="chat-launcher-tooltip flex items-center gap-2" side="left" sideOffset={10}>
-                                {launcherLabel}
-                                <KbdGroup><Kbd>{shortcutModifier}</Kbd>+<Kbd>K</Kbd></KbdGroup>
+                            <TooltipContent className="chat-launcher-tooltip bg-transparent p-0" side="left" sideOffset={10}>
+                                <LauncherShortcutHint label={launcherLabel} modifier={shortcutModifier} motion={motion} />
                             </TooltipContent>
                         )}
                     </Tooltip>
