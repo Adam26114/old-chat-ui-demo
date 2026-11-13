@@ -19,7 +19,10 @@ export type ConnectionStatus = "connecting" | "connected" | "disconnected" | "ex
 const expiredMessage = "Session expired. Do you want to restart a new chat?\n\n[Yes, restart chat](#restart)";
 const sessionErrors = ["Invalid token values", "JWT token not found", "server_restarted"];
 
-type WorkerEvent = { type: string; message?: string; id?: string; timestamp?: number };
+type WorkerEvent =
+    | { type: "session-changed"; authToken: string; previousAuthToken: string | null }
+    | { type: "session-settled"; ready?: boolean; expired?: boolean }
+    | { type: "response" | "usermessage" | "error" | "severe" | "expired" | "host-expired" | "connected" | "authenticated" | "disconnected" | "logout" | "trigger"; message?: string; id?: string; timestamp?: number };
 
 export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivElement>) {
     const {
@@ -32,10 +35,11 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
     const [messages, setMessages] = useState<ChatRecord[]>([]);
     const [isRunning, setIsRunning] = useState(false);
     const [status, setStatus] = useState<ConnectionStatus>("connecting");
+    const [sessionReset, setSessionReset] = useState(0);
     const workerRef = useRef<SharedWorker | null>(null);
+    const sessionToken = useRef<string | null>(null);
     const pendingRef = useRef(false);
     const restartRef = useRef<() => Promise<void>>(async () => {});
-    const clientID = useRef("");
     const connectionStatus = useRef<ConnectionStatus>("connecting");
     const verification = useRef<AbortController | null>(null);
     const [verifyingMessage, setVerifyingMessage] = useState<ChatRecord | null>(null);
@@ -53,18 +57,26 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         if (!app_key || !customer_id) throw new Error("Unknown client.");
         let active = true;
         const workerConfig = { app_key, customer_id, property_code, booking_link, login_link, payment_link };
-        const generateAuthToken = () => {
+        let bookingToken = x_auth_token;
+        let transitions = 0;
+        let historyToken: string | null = null;
+        const generateAuthToken = (token = bookingToken) => {
             const now = Date.now() / 1000;
             return KJUR.jws.JWS.sign("HS256", JSON.stringify({ alg: "HS256", typ: "JWT" }), JSON.stringify({
                 nbf: now, iat: now, exp: now + 3600,
-                data: { ...workerConfig, x_auth_token },
+                data: { ...workerConfig, x_auth_token: token },
             }), import.meta.env.VITE_CHAT_SERVER_KEY);
+        };
+        const updateStatus = (next: ConnectionStatus) => {
+            connectionStatus.current = next;
+            setStatus(next);
         };
         const clearSession = () => {
             cancelVerification("restart");
             setVerificationError(null);
             localStorage.removeItem("chat_history");
             localStorage.removeItem("chat_auth_token");
+            historyToken = null;
             setMessages([]);
             pendingRef.current = false;
             setIsRunning(false);
@@ -87,12 +99,12 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
             authToken = generateAuthToken();
             localStorage.setItem("chat_auth_token", authToken);
         }
+        sessionToken.current = authToken;
+        historyToken = authToken;
         setMessages(readHistory());
         setVerifyingMessage(null);
-        connectionStatus.current = "connecting";
-        setStatus("connecting");
-        clientID.current = sessionStorage.getItem("chat_tab_id") || uuidv4();
-        sessionStorage.setItem("chat_tab_id", clientID.current);
+        updateStatus("connecting");
+        if (!sessionStorage.getItem("chat_tab_id")) sessionStorage.setItem("chat_tab_id", uuidv4());
 
         // One worker per effect, never per render. The wrapper handles dedicated-worker fallback.
         const connection = new SharedWorker(workerURL, { type: "module", name: authToken });
@@ -104,31 +116,59 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         const receive = (type: ChatRecord["type"], text: string, id?: string, timestamp?: number) => {
             const record = newRecord(type, text, id, timestamp);
             setMessages((previous) => previous.some((item) => item.id === record.id) ? previous : [...previous, record]);
-            void appendHistory(record).catch(console.error);
+            void appendHistory(record, historyToken).catch(console.error);
+        };
+        const beginTransition = (type: string, message?: string) => {
+            transitions++;
+            cancelVerification("restart");
+            setVerificationError(null);
+            stopWaiting();
+            updateStatus(type === "host-expired" ? "expired" : "connecting");
+            connection.postMessage({ type, message });
         };
         const restart = async () => {
             cancelVerification("restart");
             await navigator.locks.request("restart_session", { ifAvailable: true }, (lock) => {
                 if (!lock || !active) return;
-                clearSession();
-                authToken = generateAuthToken();
-                localStorage.setItem("chat_auth_token", authToken);
-                connectionStatus.current = "connecting";
-                setStatus("connecting");
-                connection.postMessage({ uuid: clientID.current, type: "restart", message: authToken });
+                if (!transitions) beginTransition("restart", generateAuthToken());
             });
         };
         restartRef.current = restart;
         const expire = (id?: string, timestamp?: number) => {
             cancelVerification("restart");
-            connectionStatus.current = "expired";
-            setStatus("expired");
+            updateStatus("expired");
             stopWaiting();
             receive("expired", expiredMessage, id, timestamp);
         };
         connection.onmessage = ({ data }: MessageEvent<WorkerEvent>) => {
             if (!active) return;
+            if (transitions && !["session-changed", "session-settled", "host-expired", "expired"].includes(data.type)) return;
             switch (data.type) {
+                case "session-changed": {
+                    bookingToken = jwtDecode<IJwtPayload>(data.authToken).data.x_auth_token;
+                    // A slower tab can receive an older transition after the cache has advanced.
+                    const cachedToken = localStorage.getItem("chat_auth_token");
+                    if (cachedToken !== data.authToken && (cachedToken === data.previousAuthToken || cachedToken === null)) {
+                        localStorage.removeItem("chat_history");
+                        localStorage.setItem("chat_auth_token", data.authToken);
+                    }
+                    sessionToken.current = data.authToken;
+                    historyToken = data.authToken;
+                    cancelVerification("restart");
+                    setVerificationError(null);
+                    setMessages([]);
+                    stopWaiting();
+                    setSessionReset((previous) => previous + 1);
+                    updateStatus("connecting");
+                    break;
+                }
+                case "session-settled":
+                    transitions--;
+                    if (!transitions) {
+                        if (data.expired) updateStatus("expired");
+                        else if (data.ready) updateStatus("connected");
+                    }
+                    break;
                 case "response":
                     receive("response", chatbox_title ? (data.message || "").replaceAll("group_name", chatbox_title) : data.message || "", data.id, data.timestamp);
                     stopWaiting();
@@ -154,25 +194,26 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
                 case "expired":
                     expire(data.id, data.timestamp);
                     break;
+                case "host-expired":
+                    bookingToken = "";
+                    if (localStorage.getItem("chat_auth_token") === sessionToken.current) {
+                        localStorage.removeItem("chat_auth_token");
+                    }
+                    sessionToken.current = null;
+                    historyToken = null;
+                    setVerificationError(null);
+                    setSessionReset((previous) => previous + 1);
+                    expire(data.id, data.timestamp);
+                    break;
                 case "connected":
                 case "authenticated":
-                    connectionStatus.current = "connected";
-                    setStatus("connected");
+                    updateStatus("connected");
                     break;
                 case "disconnected":
                     // An expired session must keep its restart affordance after disconnect.
                     cancelVerification("disconnect");
-                    connectionStatus.current = connectionStatus.current === "expired" ? "expired" : "disconnected";
-                    setStatus(connectionStatus.current);
+                    if (connectionStatus.current !== "expired") updateStatus("disconnected");
                     stopWaiting();
-                    break;
-                case "restarted":
-                    cancelVerification("restart");
-                    setVerificationError(null);
-                    setMessages([]);
-                    stopWaiting();
-                    connectionStatus.current = "connecting";
-                    setStatus("connecting");
                     break;
                 case "logout":
                     clearSession();
@@ -184,18 +225,38 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         };
         connection.start();
         const onStorage = (event: StorageEvent) => {
-            if (event.key === "chat_history" && event.newValue === null) {
+            if (event.key === "chat_history" && event.newValue === null
+                && localStorage.getItem("chat_auth_token") !== sessionToken.current) {
                 cancelVerification("restart");
                 setMessages([]);
                 stopWaiting();
             }
         };
+        const hostDocument = widgetRef.current?.ownerDocument;
+        const onAuth = (event: Event) => {
+            const token: unknown = (event as CustomEvent<{ auth_token?: unknown }>).detail?.auth_token;
+            if (typeof token !== "string" || (token === bookingToken && !transitions)) return;
+            beginTransition("auth", generateAuthToken(token));
+        };
+        const onLogin = () => connection.postMessage({ type: "login" });
+        const onLogout = () => beginTransition("logout", generateAuthToken(""));
+        const onExpiry = () => beginTransition("host-expired");
+        const hostEvents = {
+            "qikres/auth": onAuth,
+            "qikres/login": onLogin,
+            "qikres/logout": onLogout,
+            "qikres/sessionExpired": onExpiry,
+            "myroompass/login": onLogin,
+            "myroompass/logout": onLogout,
+        };
+        Object.entries(hostEvents).forEach(([name, listener]) => hostDocument?.addEventListener(name, listener));
         window.addEventListener("storage", onStorage);
         return () => {
             active = false;
             cancelVerification("unmount");
             connectionStatus.current = "disconnected";
             window.removeEventListener("storage", onStorage);
+            Object.entries(hostEvents).forEach(([name, listener]) => hostDocument?.removeEventListener(name, listener));
             connection.onmessage = null;
             connection.postMessage({ type: "detach" });
             connection.close();
@@ -228,11 +289,10 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
                     throw new MessageNotSentError();
                 }
             }
-            worker.postMessage({ uuid: clientID.current, type: "usermessage", message: record.message, id: record.id, timestamp: record.timestamp });
+            worker.postMessage({ type: "usermessage", authToken: sessionToken.current, message: record.message, id: record.id, timestamp: record.timestamp });
             pendingRef.current = true;
             setIsRunning(true);
             setMessages((previous) => [...previous, record]);
-            void appendHistory(record).catch(console.error);
         } catch {
             if (["restart", "unmount", "configuration"].includes(controller?.signal.reason)) return;
             const message = "We couldn’t verify your message. Please try again.";
@@ -247,5 +307,5 @@ export function useChatWorker(props: ChatbotProp, widgetRef: RefObject<HTMLDivEl
         }
     }, [siteKey, endpoint]);
     const restart = useCallback(() => restartRef.current(), []);
-    return { messages, isRunning, verifyingMessage, verificationError, status, send, restart };
+    return { messages, isRunning, verifyingMessage, verificationError, status, sessionReset, send, restart };
 }

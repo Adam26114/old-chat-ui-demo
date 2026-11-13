@@ -4,217 +4,172 @@ import { v4 as uuidv4 } from "uuid";
 
 const CHAT_SERVER = import.meta.env.VITE_CHAT_SERVER;
 
-let authToken:string = self.name;
-let disconnected:boolean = false;
-let authenticated:boolean = false;
-
-let authPool:ReturnType<typeof setInterval>;
-let socket:Socket;
-const ports:(MessagePort|Worker)[] = [];
-let previousChatEvent: string | undefined;
+type ClientPort = MessagePort | Worker;
+const ports: ClientPort[] = [];
 const chatEvents = new Set(["response", "error", "severe", "expired"]);
+
+function broadcast(event: object) {
+    ports.forEach((port) => port.postMessage(event));
+}
+
+function bookingToken(jwt: string) {
+    return jwtDecode<IJwtPayload>(jwt).data?.x_auth_token || "";
+}
+
+let authToken = self.name;
+let x_auth_token = bookingToken(authToken);
+let socket: Socket | undefined;
+let authenticated = false;
+let pendingLogins = 0;
+let authPool: ReturnType<typeof setInterval> | undefined;
+let previousChatEvent: string | undefined;
+let expiry: { type: "expired" | "host-expired"; id: string; timestamp: number } | undefined;
 
 function relayChat(type: string, message = "") {
     const key = JSON.stringify([type, message]);
     if (key === previousChatEvent) return;
     previousChatEvent = key;
-    const event = { id: uuidv4(), timestamp: Date.now(), type, message };
-    ports.forEach((port) => port.postMessage(event));
+    broadcast({ id: uuidv4(), timestamp: Date.now(), type, message });
 }
 
-const extractXAuthToken = (token:string) => {
-    const decoded = jwtDecode(token) as IJwtPayload;
-    return decoded?.data?.["x_auth_token"] || "";
-};
+function flushLogins() {
+    if (!socket?.connected || !authenticated) return;
+    for (; pendingLogins > 0; pendingLogins--) {
+        socket.emit("login", JSON.stringify({ x_auth_token }));
+    }
+}
 
-let x_auth_token:string = extractXAuthToken(authToken);
-
-const authenticate = () => {
-    previousChatEvent = undefined;
-    authenticated = false;
+function retireSocket() {
     clearInterval(authPool);
+    socket?.removeAllListeners();
+    socket?.disconnect();
+    socket = undefined;
+    authenticated = false;
+    pendingLogins = 0;
+    previousChatEvent = undefined;
+}
 
-    socket.emit("authenticate", authToken);
+function expireSession(type: "expired" | "host-expired") {
+    if (expiry?.type === type || expiry?.type === "host-expired") return;
+    retireSocket();
+    if (type === "host-expired") x_auth_token = "";
+    expiry = { type, id: expiry?.id ?? uuidv4(), timestamp: expiry?.timestamp ?? Date.now() };
+    broadcast(expiry);
+}
 
-    /**
-     * Doing polling because authenticated event is not returned from websocket
-     * The only mean of determining the authentication is successful is from
-     * waiting event "response", "success" from websocket, which will then set 'authenticated'
-     * as true and subsequently clear the polling
-     */
-    authPool = setInterval(() => {
-        if(!authenticated) {
-            socket.emit("authenticate", authToken);
-        } else {
-            clearInterval(authPool);
-        }
-    }, 5000);
-};
+function connect() {
+    // A new manager keeps late packets from a previous session off this socket.
+    const current = io(CHAT_SERVER, { autoConnect: false, forceNew: true });
+    socket = current;
+    const markAuthenticated = () => {
+        if (authenticated) return;
+        authenticated = true;
+        clearInterval(authPool);
+        flushLogins();
+        broadcast({ type: "authenticated" });
+    };
 
-const initSocket = () => {
-    const _socket = io(CHAT_SERVER);
-    _socket.onAny((type: string) => {
+    current.onAny((type: string) => {
         if (!chatEvents.has(type)) previousChatEvent = undefined;
     });
-
-    _socket.on("connect", () => {
+    current.on("connect", () => {
         previousChatEvent = undefined;
-        /**
-         * Once connected we will send auth
-         * Except in event disconnected
-         */
-        if( !disconnected ) {
-            authenticate();
+        if (authenticated) {
+            flushLogins();
+            broadcast({ type: "connected" });
+            return;
         }
 
-        disconnected = false;
-
-        ports.forEach((_port) => {
-            _port.postMessage({
-                type: "connected"
-            });
-        });
+        current.emit("authenticate", authToken);
+        // Some servers acknowledge authentication with their first reply.
+        authPool = setInterval(() => current.emit("authenticate", authToken), 5000);
     });
-
-    _socket.on("success", () => {
-        if(!authenticated) {
-            authenticated = true;
-            ports.forEach((_port) => {
-                _port.postMessage({ type: "authenticated" });
-            });
-        }
-    });
-
-    _socket.on("response", (message) => {
-        if(!authenticated) {
-            authenticated = true;
-
-            /**
-             * Let all socket client knows response received successfully,
-             * marking first authenticated status
-             */
-            ports.forEach((_port) => {
-                _port.postMessage({
-                    type: "authenticated",
-                    message
-                });
-            });
-        }
-
+    current.on("success", markAuthenticated);
+    current.on("response", (message: string) => {
+        markAuthenticated();
         relayChat("response", message);
     });
-
-    _socket.on("error", (message: string) => relayChat("error", message));
-    _socket.on("severe", (message: string) => relayChat("severe", message));
-
-    _socket.on("disconnect", () => {
-        disconnected = true;
+    current.on("error", (message: string) => relayChat("error", message));
+    current.on("severe", (message: string) => relayChat("severe", message));
+    current.on("disconnect", () => {
+        clearInterval(authPool);
         previousChatEvent = undefined;
-
-        ports.forEach((_port) => {
-            _port.postMessage({
-                type: "disconnected"
-            });
-        });
+        broadcast({ type: "disconnected" });
     });
-
-    _socket.on("expired", () => {
-        relayChat("expired");
-
-        _socket.disconnect();
-    });
-
-    _socket.on("logout", (message) => {
-        ports.forEach((_port) => {
-            _port.postMessage({
-                type: "logout",
-                message
-            });
-        });
-    });
-
-    _socket.on("trigger", (message) => {
-        ports.forEach((_port) => {
-            _port.postMessage({
-                type: "trigger",
-                message
-            });
-        });
-    });
-
-    return _socket;
+    current.on("expired", () => expireSession("expired"));
+    current.on("logout", (message: string) => broadcast({ type: "logout", message }));
+    current.on("trigger", (message: string) => broadcast({ type: "trigger", message }));
+    current.connect();
 }
 
-const start = (port:(MessagePort|Worker)) => {
+function changeSession(jwt: string) {
+    const previousAuthToken = expiry?.type === "host-expired" ? null : authToken;
+    retireSocket();
+    authToken = jwt;
+    x_auth_token = bookingToken(jwt);
+    expiry = undefined;
+    broadcast({ type: "session-changed", authToken, previousAuthToken });
+    connect();
+}
+
+function start(port: ClientPort) {
     ports.push(port);
-
     port.onmessage = ({ data }) => {
-
-        switch(data.type) {
+        switch (data.type) {
             case "detach": {
                 const index = ports.indexOf(port);
                 if (index >= 0) ports.splice(index, 1);
                 break;
             }
-            case "restart":
-                authToken = data.message;
-                x_auth_token = extractXAuthToken(authToken);
-
-                if (!socket.connected) socket.connect();
-                authenticate();
-
-                ports.forEach((_port) => {
-                    if(_port != port) {
-                        _port.postMessage({
-                            type: "restarted"
-                        });
-                    }
+            case "auth": {
+                const nextToken = bookingToken(data.message);
+                const expiredToken = expiry?.type === "host-expired" && bookingToken(authToken);
+                if (nextToken !== x_auth_token && nextToken !== expiredToken) changeSession(data.message);
+                port.postMessage({
+                    type: "session-settled",
+                    expired: !!expiry,
+                    ready: !!socket?.connected && authenticated,
                 });
-
                 break;
-
+            }
+            case "login":
+                if (expiry) break;
+                pendingLogins++;
+                flushLogins();
+                break;
+            case "logout":
+                if (socket?.connected) socket.emit("logout", JSON.stringify({ x_auth_token }));
+                changeSession(data.message);
+                port.postMessage({ type: "session-settled" });
+                break;
+            case "host-expired":
+                expireSession("host-expired");
+                port.postMessage({ type: "session-settled" });
+                break;
+            case "restart":
+                changeSession(data.message);
+                port.postMessage({ type: "session-settled" });
+                break;
             case "usermessage":
+                if (expiry || data.authToken !== authToken || !socket?.connected || !authenticated) break;
                 previousChatEvent = undefined;
-                socket.emit("chat", JSON.stringify({
-                    input: data.message,
-                    x_auth_token
-                }));
-
-                //broadcast to other workers so messages are sync
-                ports.forEach((_port) => {
-                    if(_port != port) {
-                        _port.postMessage({
-                            id: data.id,
-                            timestamp: data.timestamp,
-                            type: "usermessage",
-                            message: data.message
-                        });
-                    }
-                });
-
+                socket.emit("chat", JSON.stringify({ input: data.message, x_auth_token }));
+                broadcast({ id: data.id, timestamp: data.timestamp, type: "usermessage", message: data.message });
                 break;
         }
     };
 
-    if(!socket) {
-        socket = initSocket();
-    } else {
-        port.postMessage({ type: socket.connected ? "connected" : "disconnected" });
-        if (authenticated) port.postMessage({ type: "authenticated" });
-    }
+    if (expiry) port.postMessage(expiry);
+    else if (!socket) connect();
+    else if (socket.connected && authenticated) port.postMessage({ type: "authenticated" });
 }
 
-self.onconnect = (e:MessageEvent<string>) => {
-    // Get the MessagePort from the event. This will be the
-    // communication channel between SharedWorker and the Tab
-    const [port] = e.ports;
-
+self.onconnect = (event: MessageEvent) => {
+    const [port] = event.ports;
     start(port);
 };
 
-// This is the fallback for WebWorkers, in case the browser doesn't support SharedWorkers natively
-if (!("SharedWorkerGlobalScope" in self)) {
-    start(self);
-}
+// The dedicated-worker fallback uses the same message protocol.
+if (!("SharedWorkerGlobalScope" in self)) start(self);
 
 export {};

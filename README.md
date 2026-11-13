@@ -131,10 +131,10 @@ Install the test browsers once with `npx playwright install chromium webkit`,
 then run `npm run test:ui`. The suite starts its own Vite host and a local
 Socket.IO fixture on ports 4180 and 4181. It uses test identifiers and a test
 signing key, independent of the supplied environment files and live backend.
-The suite has 80 Chromium/WebKit checks: 10 guest-page checks, 26 widget checks,
-16 motion checks and 28 feedback/verification checks. They cover navigation, starter questions, booking, restart/expiry,
-mobile layout, drafts, Markdown, timestamps, verification, errors, history, and reduced
-motion. Screenshots and failure traces are saved under ignored `test-results/`.
+Chromium and WebKit checks cover navigation, starter questions, booking, host
+session events, restart and expiry, mobile layout, drafts, Markdown, timestamps,
+verification, errors, history, and reduced motion. Screenshots and failure
+traces are saved under ignored `test-results/`.
 Real device software-keyboard behavior still needs a mobile Safari/Chrome check.
 
 ## Preserved backend behavior
@@ -156,15 +156,36 @@ or session reset starts a fresh comparison. `severe` uses the same display and
 session handling as `error`. Known error codes receive the reference wording;
 unknown errors display the `Unknown error:` fallback.
 
+## Host website session events
+
+Dispatch these events on the document containing the widget. The widget
+registers its listeners on mount and removes them on unmount.
+
+| Event | Widget behavior |
+| --- | --- |
+| `qikres/auth` | Reads the string `detail.auth_token`. A changed booking token starts a new chat session. |
+| `qikres/login`, `myroompass/login` | Send Socket.IO `login` with the current `x_auth_token`. Dispatch the auth event first when updating the token. |
+| `qikres/logout`, `myroompass/logout` | Send Socket.IO `logout` with the outgoing token if connected, clear signed-in chat and drafts, then reconnect as a guest. |
+| `qikres/sessionExpired` | Discard the expired booking token and disable sending until the guest restarts or the host supplies a fresh token. Restarting before a fresh token arrives opens a guest session. |
+
+```js
+document.dispatchEvent(new CustomEvent("qikres/auth", {
+  detail: { auth_token: bookingToken },
+}));
+document.dispatchEvent(new Event("qikres/login"));
+```
+
+Session changes cancel in-flight message verification and apply to tabs
+attached to the same SharedWorker.
+
 ## Migration details
 
 `react-chat-widget-react-18` is replaced by `@assistant-ui/react` and `@assistant-ui/react-markdown`. The runtime uses `useExternalStoreRuntime` to adapt the existing worker message store. GFM Markdown supports tables and booking links; user messages remain plain text.
 
 Worker creation follows the React effect lifecycle, with cleanup on unmount.
 Worker broadcasts get client-side event IDs so each shared response is persisted
-once. Restart reconnects an expired socket, and authentication success updates
-the UI state. WBE receives its booking token through the existing
-`x_auth_token` prop. Server URLs, keys, and retained payload formats are unchanged.
+once. Authentication success updates the UI state. WBE can receive its initial
+booking token through the existing `x_auth_token` prop.
 
 ## Validation
 

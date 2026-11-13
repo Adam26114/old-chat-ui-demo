@@ -26,9 +26,10 @@ export function newRecord(type: ChatRecord["type"], message: string, id = uuidv4
     return { id, type, message, timestamp };
 }
 
-export function appendHistory(record: ChatRecord): Promise<void> {
+export function appendHistory(record: ChatRecord, authToken: string | null): Promise<void> {
     // All receiving tabs share the same event id; persist each broadcast once.
     return navigator.locks.request("update_chat", () => {
+        if (localStorage.getItem("chat_auth_token") !== authToken) return;
         const history = readHistory();
         if (!history.some((item) => item.id === record.id)) {
             localStorage.setItem("chat_history", JSON.stringify([...history, record]));

@@ -67,7 +67,7 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const [confirmRestart, setConfirmRestart] = useState(false);
     const panelID = useId();
     const titleID = useId();
-    const { messages, isRunning, verifyingMessage, verificationError, status, send, restart } = useChatWorker(props || {}, widgetRef);
+    const { messages, isRunning, verifyingMessage, verificationError, status, sessionReset, send, restart } = useChatWorker(props || {}, widgetRef);
     const isVerifying = verifyingMessage !== null;
     const threadMessages = useMemo<ThreadRecord[]>(() => verifyingMessage
         ? [...messages, { ...verifyingMessage, isOptimistic: true }]
@@ -88,6 +88,14 @@ function ChatBot(props: ChatbotProp | null | undefined) {
     const shortcutModifier = /^(Mac|iPhone|iPad|iPod)/.test(navigator.platform) ? "⌘" : "Ctrl";
     const LauncherIcon = open ? BotSquareFill : BotSquare;
     const launcherLabel = open ? "Hide chat" : "Open chat";
+
+    const lastSessionReset = useRef(sessionReset);
+    useEffect(() => {
+        if (lastSessionReset.current === sessionReset) return;
+        lastSessionReset.current = sessionReset;
+        runtime.thread.composer.setText("");
+        setConfirmRestart(false);
+    }, [runtime, sessionReset]);
 
     useEffect(() => {
         if (confirmRestart) return;

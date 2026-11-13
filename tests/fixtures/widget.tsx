@@ -15,7 +15,8 @@ export function Fixture() {
         recaptcha_endpoint={options.get("captcha") === "both" || options.get("captcha") === "endpoint" ? "http://127.0.0.1:4181/verify" : ""}
         app_key="ui-test"
         customer_id="test-hotel"
-        property_code={options.get("greeting") === "none" ? "no-greeting" : "test-property"}
+        property_code={options.has("session") ? "session-fixture" : options.get("greeting") === "none" ? "no-greeting" : "test-property"}
+        x_auth_token={options.get("session") || undefined}
         chatbox_title="Hotel guest assistant"
         avatar={options.get("avatar") === "yes" ? "/src/assets/favicon.svg" : undefined}
         booking_link={booking ? "http://127.0.0.1:4180/tests/fixtures/booking.html" : undefined}

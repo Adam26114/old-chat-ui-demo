@@ -259,7 +259,7 @@ test("token timeout restores the draft without sending", async ({ page, request 
     expect(await sentCount(request)).toBe(initial);
 });
 
-for (const action of ["restart", "disconnect", "unmount"] as const) {
+for (const action of ["restart", "disconnect", "unmount", "auth", "logout", "expiry"] as const) {
     test(`a late verification result after ${action} cannot send`, async ({ page, request }) => {
         let finish: (() => void) | undefined;
         const gate = new Promise<void>((resolve) => { finish = resolve; });
@@ -271,7 +271,7 @@ for (const action of ["restart", "disconnect", "unmount"] as const) {
             await route.fulfill({ json: { success: true }, headers: cors }).catch(() => {});
             responseFinished = true;
         });
-        await open(page, "?captcha=both&unmount=yes");
+        await open(page, "?captcha=both&unmount=yes&session=fixture-verification");
         const initial = await sentCount(request);
         const input = await submit(page, "Never send this stale question");
         await expect.poll(() => received).toBe(true);
@@ -285,14 +285,24 @@ for (const action of ["restart", "disconnect", "unmount"] as const) {
             await request.post("http://127.0.0.1:4181/disconnect");
             await expect(page.getByRole("alert")).toHaveText(failure);
             await expect(input).toHaveValue("Never send this stale question");
-        } else {
+        } else if (action === "unmount") {
             await page.getByRole("button", { name: "Unmount chat", exact: true }).click();
             await expect(page.locator(".ubiq-chat")).toHaveCount(0);
+        } else {
+            await page.evaluate((transition) => {
+                if (transition === "auth") {
+                    document.dispatchEvent(new CustomEvent("qikres/auth", { detail: { auth_token: "fixture-verification-updated" } }));
+                } else {
+                    document.dispatchEvent(new Event(transition === "logout" ? "qikres/logout" : "qikres/sessionExpired"));
+                }
+            }, action);
+            await expect(input).toHaveValue("");
+            if (action === "expiry") await expect(input).toBeDisabled();
         }
         await expect(bubble).toHaveCount(0);
         finish!();
         await expect.poll(() => responseFinished).toBe(true);
-        if (action !== "unmount") await expect(page.getByText("Ready to help with your stay", { exact: true })).toBeVisible();
+        if (action !== "unmount" && action !== "expiry") await expect(page.getByText("Ready to help with your stay", { exact: true })).toBeVisible();
         expect(await sentCount(request)).toBe(initial);
         await expect(page.getByRole("table")).toHaveCount(0);
     });

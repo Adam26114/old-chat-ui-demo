@@ -2,10 +2,11 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 
 let chatCount = 0;
+const sessionEvents = [];
 const http = createServer((request, response) => {
     if (request.url === "/stats") {
         response.writeHead(200, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ chatCount }));
+        response.end(JSON.stringify({ chatCount, sessionEvents }));
         return;
     }
     if (request.url === "/disconnect" && request.method === "POST") {
@@ -24,14 +25,26 @@ const io = new Server(http, {
     allowRequest: (_request, accept) => setTimeout(() => accept(null, true), Math.max(0, resumeConnectionsAt - Date.now())),
 });
 io.on("connection", (socket) => {
+    const record = (type, data) => {
+        if (socket.data.sessionFixture) sessionEvents.push({ type, socket: socket.id, ...data });
+    };
     socket.on("authenticate", (token) => {
-        socket.emit("success");
         const { data } = JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString());
+        socket.data.sessionFixture = data.property_code === "session-fixture";
+        record("authenticate", { x_auth_token: data.x_auth_token });
+        socket.emit("success");
         if (data.property_code !== "no-greeting") socket.emit("response", "Welcome to **group_name**. How can we help with your stay?");
+    });
+    socket.on("login", (payload) => record("login", JSON.parse(payload)));
+    socket.on("logout", (payload) => {
+        record("logout", JSON.parse(payload));
+        socket.emit("logout", "Old logout acknowledgement");
+        socket.emit("response", "Late reply from the signed-in session");
     });
     socket.on("chat", (payload) => {
         chatCount++;
-        const { input } = JSON.parse(payload);
+        const { input, x_auth_token } = JSON.parse(payload);
+        record("chat", { input, x_auth_token });
         if (input.startsWith("Fixture error ")) {
             const code = input.slice("Fixture error ".length);
             socket.emit("error", code);
