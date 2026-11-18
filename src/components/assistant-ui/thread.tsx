@@ -8,7 +8,7 @@ import { Clock } from "../icons/clock";
 import { Send } from "../icons/send";
 import { Sparkles } from "../icons/sparkles";
 import remarkGfm from "remark-gfm";
-import { useContext, useRef } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { ChatMotionContext, enterChatElement, gsap, useGSAP } from "../../lib/chat-motion";
 
 const MarkdownText = () => <MarkdownTextPrimitive className="chat-markdown" remarkPlugins={[remarkGfm]} smooth={false} />;
@@ -22,29 +22,78 @@ const starterQuestions = [
 function StarterQuestions() {
     const visible = useAuiState((state) => !state.thread.messages.some((message) => message.role === "user") && state.composer.text.trim() === "" && !state.thread.isDisabled);
     const ref = useRef<HTMLDivElement>(null);
+    const viewport = useRef<HTMLDivElement>(null);
+    const track = useRef<HTMLDivElement>(null);
+    const [edges, setEdges] = useState({ overflow: false, left: false, right: false });
     const considered = useRef(false);
     const motion = useContext(ChatMotionContext);
+    useEffect(() => {
+        const root = ref.current;
+        const scroller = viewport.current;
+        const content = track.current;
+        if (!visible || !root || !scroller || !content) return;
+        const measure = () => {
+            if (!root.clientWidth) return;
+            const overflow = content.scrollWidth > root.clientWidth + 1;
+            const left = overflow && scroller.scrollLeft > 1;
+            const right = overflow && scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1;
+            setEdges((previous) => previous.overflow === overflow && previous.left === left && previous.right === right
+                ? previous : { overflow, left, right });
+        };
+        const observer = new ResizeObserver(measure);
+        [root, scroller, content].forEach((element) => observer.observe(element));
+        scroller.addEventListener("scroll", measure, { passive: true });
+        measure();
+        return () => {
+            observer.disconnect();
+            scroller.removeEventListener("scroll", measure);
+        };
+    }, [visible]);
+    const scroll = (direction: number) => {
+        const scroller = viewport.current;
+        if (!scroller) return;
+        scroller.scrollBy({
+            left: direction * scroller.clientWidth,
+            behavior: motion?.reduced ? "instant" : "smooth",
+        });
+    };
     useGSAP(() => {
         if (!motion?.open || considered.current) return;
         considered.current = true;
         if (!motion.intro || !motion.pageVisible || !ref.current) return;
-        return enterChatElement(motion, ref.current.querySelectorAll("button"), 4, 0.16, 0.04);
+        return enterChatElement(motion, ref.current.querySelectorAll(".chat-suggestion"), 4, 0.16, 0.04);
     }, { scope: ref, dependencies: [motion?.open] });
     if (!visible) return null;
     return (
-        <div ref={ref} className="chat-suggestions" role="group" aria-label="Starter questions">
-            {starterQuestions.map(({ Icon, label, prompt }) => (
-                <ThreadPrimitive.Suggestion
-                    key={label}
-                    prompt={prompt}
-                    send={false}
-                    clearComposer
-                    asChild
-                    onClick={(event) => event.currentTarget.closest(".chat-panel")?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true })}
-                >
-                    <Button variant="ghost" className="chat-suggestion hover:bg-transparent [&_svg]:size-[14px]"><Icon />{label}</Button>
-                </ThreadPrimitive.Suggestion>
-            ))}
+        <div ref={ref} className="chat-suggestions" role="group" aria-label="Starter questions" data-overflow={edges.overflow}>
+            {edges.overflow ? <Button variant="ghost" size="icon" className="chat-suggestions-arrow chat-suggestions-previous" aria-label="Previous starter questions" disabled={!edges.left} onClick={() => scroll(-1)}><ArrowDown /></Button> : null}
+            <div className="chat-suggestions-window" data-left={edges.left} data-right={edges.right}>
+                <div ref={viewport} className="chat-suggestions-viewport">
+                    <div ref={track} className="chat-suggestions-track">
+                        {starterQuestions.map(({ Icon, label, prompt }) => (
+                            <ThreadPrimitive.Suggestion
+                                key={label}
+                                prompt={prompt}
+                                send={false}
+                                clearComposer
+                                asChild
+                                onFocus={(event) => {
+                                    const scroller = viewport.current;
+                                    if (!scroller) return;
+                                    const bounds = scroller.getBoundingClientRect();
+                                    const button = event.currentTarget.getBoundingClientRect();
+                                    if (button.left < bounds.left + 12) scroller.scrollLeft += button.left - bounds.left - 12;
+                                    else if (button.right > bounds.right - 12) scroller.scrollLeft += button.right - bounds.right + 12;
+                                }}
+                                onClick={(event) => event.currentTarget.closest(".chat-panel")?.querySelector<HTMLTextAreaElement>("textarea")?.focus({ preventScroll: true })}
+                            >
+                                <Button variant="ghost" className="chat-suggestion hover:bg-transparent [&_svg]:size-[14px]"><Icon />{label}</Button>
+                            </ThreadPrimitive.Suggestion>
+                        ))}
+                    </div>
+                </div>
+            </div>
+            {edges.overflow ? <Button variant="ghost" size="icon" className="chat-suggestions-arrow chat-suggestions-next" aria-label="Next starter questions" disabled={!edges.right} onClick={() => scroll(1)}><ArrowDown /></Button> : null}
         </div>
     );
 }

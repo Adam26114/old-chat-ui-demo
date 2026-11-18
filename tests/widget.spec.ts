@@ -8,14 +8,14 @@ async function openChat(page: Page, query = "") {
 
 async function expectStarterQuestionsLayout(page: Page) {
     const row = page.getByRole("group", { name: "Starter questions" });
-    await expect(row.getByRole("button")).toHaveText(["Rooms & reservations", "Check-in & check-out", "Hotel amenities"]);
-    await expect(row.locator('button svg[aria-hidden="true"]')).toHaveCount(3);
+    await expect(row.locator(".chat-suggestion")).toHaveText(["Rooms & reservations", "Check-in & check-out", "Hotel amenities"]);
+    await expect(row.locator('.chat-suggestion svg[aria-hidden="true"]')).toHaveCount(3);
     await expect.poll(() => row.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
         const thread = element.closest(".chat-thread");
         const conversation = thread?.querySelector(".chat-scroll-container");
         const footer = thread?.querySelector(".chat-composer-footer");
-        const buttons = [...element.querySelectorAll("button")];
+        const buttons = [...element.querySelectorAll(".chat-suggestion")];
         if (!thread || !conversation || !footer || footer.contains(element) || buttons.length !== 3
             || bounds.top < conversation.getBoundingClientRect().bottom || bounds.bottom > footer.getBoundingClientRect().top
             || thread.scrollWidth > thread.clientWidth) return false;
@@ -237,6 +237,80 @@ test("starter questions remain after the greeting and can be edited before sendi
     await page.getByRole("region", { name: "Hotel guest assistant" }).screenshot({ path: testInfo.outputPath("widget-desktop.png") });
 });
 
+test("starter strip arrows and fades track overflow, resizing, and keyboard focus", async ({ page }, testInfo) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await openChat(page);
+    const strip = page.getByRole("group", { name: "Starter questions" });
+    const viewport = strip.locator(".chat-suggestions-viewport");
+    const edges = strip.locator(".chat-suggestions-window");
+    const previous = strip.getByRole("button", { name: "Previous starter questions" });
+    const next = strip.getByRole("button", { name: "Next starter questions" });
+    const first = strip.getByRole("button", { name: "Rooms & reservations", exact: true });
+    const last = strip.getByRole("button", { name: "Hotel amenities", exact: true });
+    for (const width of [1280, 320, 390, 640]) {
+        await page.setViewportSize({ width, height: 844 });
+        await expectStarterQuestionsLayout(page);
+        await expect(viewport).toHaveCSS("scrollbar-width", "none");
+        const overflowing = await strip.evaluate((element) => element.querySelector(".chat-suggestions-track")!.scrollWidth > element.clientWidth + 1);
+        await expect(strip).toHaveAttribute("data-overflow", String(overflowing));
+        if (!overflowing) {
+            await expect(previous).toHaveCount(0);
+            await expect(next).toHaveCount(0);
+            await expect(edges).toHaveAttribute("data-left", "false");
+            await expect(edges).toHaveAttribute("data-right", "false");
+            continue;
+        }
+        await viewport.evaluate((element) => { element.scrollLeft = 0; });
+        await expect(previous).toBeDisabled();
+        await expect(next).toBeEnabled();
+        expect(await next.evaluate((button) => ({ width: button.clientWidth, height: button.clientHeight }))).toEqual({ width: 44, height: 44 });
+        await expect(edges).toHaveAttribute("data-left", "false");
+        await expect(edges).toHaveAttribute("data-right", "true");
+        const initialBounds = await strip.boundingBox();
+        const geometry = await viewport.evaluate((element) => ({ width: element.clientWidth, end: element.scrollWidth - element.clientWidth }));
+        for (let destination = geometry.width; destination < geometry.end + geometry.width; destination += geometry.width) {
+            await next.click();
+            await expect.poll(() => viewport.evaluate((element) => element.scrollLeft)).toBe(Math.min(destination, geometry.end));
+        }
+        await expect(next).toBeDisabled();
+        await expect(previous).toBeEnabled();
+        await expect(edges).toHaveAttribute("data-left", "true");
+        await expect(edges).toHaveAttribute("data-right", "false");
+        await expect(last).toBeInViewport({ ratio: 1 });
+        expect(await strip.boundingBox()).toEqual(initialBounds);
+        expect(await page.evaluate(() => window.scrollX)).toBe(0);
+        await first.focus();
+        await expect(previous).toBeDisabled();
+        const tabKey = testInfo.project.name === "webkit" ? "Alt+Tab" : "Tab";
+        await page.keyboard.press(tabKey);
+        await page.keyboard.press(tabKey);
+        await expect(last).toBeFocused();
+        await expect(last).toBeInViewport({ ratio: 1 });
+        await expect(next).toBeDisabled();
+    }
+    // A wider host panel can fit every question and needs neither control nor fade.
+    await page.setViewportSize({ width: 1280, height: 844 });
+    await page.locator(".chat-panel").evaluate((panel) => { panel.style.width = "800px"; });
+    await expect(strip).toHaveAttribute("data-overflow", "false");
+    await expect(previous).toHaveCount(0);
+    await expect(next).toHaveCount(0);
+    await expect(edges).toHaveAttribute("data-left", "false");
+    await expect(edges).toHaveAttribute("data-right", "false");
+    await page.locator(".chat-panel").evaluate((panel) => { panel.style.removeProperty("width"); });
+    await expect(next).toBeEnabled();
+    await last.focus();
+    await page.getByRole("region", { name: "Hotel guest assistant" }).screenshot({ path: testInfo.outputPath("starter-strip.png") });
+    await last.press("Enter");
+    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    await expect(input).toHaveValue("What amenities are available at the hotel?");
+    await expect(input).toBeFocused();
+    await expect(strip).toHaveCount(0);
+    await expect(page.locator('[data-message-role="user"]')).toHaveCount(0);
+    await input.clear();
+    await expect(previous).toBeDisabled();
+    await expect(next).toBeEnabled();
+});
+
 test("the phone panel uses the screen without focusing the keyboard and preserves drafts when resized", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openChat(page);
@@ -338,10 +412,10 @@ test("small screens keep actions inside the panel and respect reduced motion", a
     await page.setViewportSize({ width: 320, height: 568 });
     const amenities = starters.getByRole("button", { name: "Hotel amenities", exact: true });
     await expect(amenities).not.toBeInViewport();
-    await expect.poll(() => starters.evaluate((row) => row.scrollWidth > row.clientWidth)).toBe(true);
+    await expect.poll(() => starters.locator(".chat-suggestions-viewport").evaluate((row) => row.scrollWidth > row.clientWidth)).toBe(true);
     await amenities.focus();
     await expect(amenities).toBeInViewport({ ratio: 1 });
-    await expect.poll(() => starters.evaluate((row) => row.scrollLeft)).toBeGreaterThan(0);
+    await expect.poll(() => starters.locator(".chat-suggestions-viewport").evaluate((row) => row.scrollLeft)).toBeGreaterThan(0);
     expect(await page.evaluate(() => window.scrollX)).toBe(0);
     await amenities.press("Enter");
     const composer = page.getByRole("textbox", { name: "Message", exact: true });

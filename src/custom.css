@@ -74,7 +74,19 @@
 .ubiq-chat .chat-message-user[data-verifying="true"] .chat-bubble-user { background: hsl(var(--primary) / 80%); }
 .ubiq-chat .chat-message-verifying { position: absolute; top: 100%; right: 2px; margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.4; }
 .ubiq-chat .chat-bubble-assistant { border: 1px solid hsl(var(--border)); border-top-left-radius: 5px; background: hsl(var(--background)); }
-.ubiq-chat .chat-suggestions { display: flex; flex-shrink: 0; gap: 6px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; padding: 4px; margin-inline: 12px; }
+.ubiq-chat .chat-suggestions { display: flex; flex-shrink: 0; align-items: center; min-width: 0; margin-inline: 12px; }
+.ubiq-chat .chat-suggestions-window { position: relative; flex: 1; min-width: 0; }
+.ubiq-chat .chat-suggestions-viewport { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; }
+.ubiq-chat .chat-suggestions-viewport::-webkit-scrollbar { display: none; }
+.ubiq-chat .chat-suggestions-track { display: flex; gap: 6px; width: max-content; padding: 4px 12px; }
+.ubiq-chat .chat-suggestions-window::before, .ubiq-chat .chat-suggestions-window::after { content: ""; position: absolute; top: 0; bottom: 0; width: 12px; z-index: 1; pointer-events: none; opacity: 0; }
+.ubiq-chat .chat-suggestions-window::before { left: 0; background: linear-gradient(to right, hsl(var(--muted)), hsl(var(--muted) / 0)); }
+.ubiq-chat .chat-suggestions-window::after { right: 0; background: linear-gradient(to left, hsl(var(--muted)), hsl(var(--muted) / 0)); }
+.ubiq-chat .chat-suggestions-window[data-left="true"]::before, .ubiq-chat .chat-suggestions-window[data-right="true"]::after { opacity: 1; }
+.ubiq-chat .chat-suggestions-arrow { width: 44px; height: 44px; flex-shrink: 0; color: hsl(var(--primary)); border-radius: 8px; }
+.ubiq-chat .chat-suggestions-arrow svg { width: 16px; height: 16px; }
+.ubiq-chat .chat-suggestions-previous svg { transform: rotate(90deg); }
+.ubiq-chat .chat-suggestions-next svg { transform: rotate(-90deg); }
 .ubiq-chat .chat-suggestion { position: relative; isolation: isolate; flex: 0 0 auto; min-height: 44px; gap: 6px; padding: 0 10px; color: hsl(var(--primary)); font-size: 12px; }
 .ubiq-chat .chat-suggestion::before { content: ""; position: absolute; inset: 4px 0; z-index: -1; border-radius: 7px; background: hsl(var(--accent) / 65%); }
 .ubiq-chat .chat-suggestion:hover::before { background: hsl(var(--accent)); }
