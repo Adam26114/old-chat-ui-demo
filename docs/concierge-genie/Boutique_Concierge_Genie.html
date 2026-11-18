@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concierge genie · Web preview</title>
+<style>
+  :root {
+    color-scheme: light;
+    font-family: "DM Sans", system-ui, sans-serif;
+    color: #1f382e;
+    background: #f5f5ee;
+    --paper: #faf9f4;
+    --rule: #d7ded0;
+    --muted: #506457;
+    --serif: "Baskervville", "Iowan Old Style", Georgia, serif;
+    --out: cubic-bezier(.23,1,.32,1);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid #417862; outline-offset: 3px; }
+  [hidden] { display: none !important; }
+  h1, h2, h3, p, figure { margin: 0; }
+  h1, h2, .guest-title, .chat-title { font-family: var(--serif); font-weight: 500; }
+  main { width: min(1180px, 100% - 80px); margin: 0 auto; padding: 46px 0 56px; }
+  .intro { border-top: 1px solid #819986; padding: 26px 0 30px; }
+  h1 { font-size: clamp(3rem, 7vw, 5rem); line-height: .99; letter-spacing: -.065em; }
+  .intro p { margin-top: 13px; color: var(--muted); line-height: 1.5; }
+  .workspace { display: grid; grid-template-columns: minmax(0, 1.16fr) minmax(0, 1fr); gap: 18px; }
+  .panel { background: var(--paper); border: 1px solid var(--rule); border-radius: 20px; }
+  .section-title { font-size: 1.8rem; line-height: 1; letter-spacing: -.04em; }
+  .sheet {
+    background: radial-gradient(ellipse at 8% 7%, #dbe6d7 0, transparent 55%),
+      radial-gradient(ellipse at 100% 100%, #e8ddcb 0, transparent 59%), #f5f5ec;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .sheet-header { padding: 22px 24px 14px; border-bottom: 1px solid #405d481f; }
+  .sheet-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex: 1;
+  }
+  .sheet-grid figure {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    padding: 23px 10px 21px;
+    gap: 12px;
+    min-height: 183px;
+  }
+  .sheet-grid figure:nth-child(odd) { border-right: 1px solid #405d481f; }
+  .sheet-grid figure:nth-child(-n+2) { border-bottom: 1px solid #405d481f; }
+  .sheet-grid figcaption { font-size: .875rem; font-weight: 670; letter-spacing: .015em; }
+  .tile {
+    --rim: #27473a;
+    --tile-cast: #203d322d;
+    --tile-size: 56px;
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: var(--tile-size);
+    height: var(--tile-size);
+    padding: 0;
+    color: inherit;
+    border: 1px solid var(--rim);
+    border-radius: 34%;
+    background:
+      radial-gradient(ellipse at 30% 7%, #557967 0%, #305b4c 45%, #1b3f36 96%);
+    box-shadow: inset 0 0 0 1px #e0e9cc38, 0 4px 12px var(--tile-cast);
+  }
+  .tile::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(ellipse at 34% 16%, #b1cbae88 0%, #a1c4ab25 56%, transparent 80%);
+    opacity: 0;
+  }
+  .tile[data-pose="hover"]::before { opacity: 1; }
+  .tile svg { display: block; width: var(--tile-size); height: var(--tile-size); pointer-events: none; }
+  .sheet .tile { --tile-size: 120px; box-shadow: inset 0 0 0 2px #e0e9cc38, 0 10px 18px var(--tile-cast); }
+  .preview { min-width: 0; display: flex; flex-direction: column; }
+  .preview-header { padding: 22px 19px 15px; display: grid; gap: 14px; }
+  .preview-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 15px; font-size: .82rem; }
+  .surfaces { display: flex; gap: 2px; padding: 3px; background: #e9eee2; border-radius: 9px; }
+  .surfaces button {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 6px;
+    padding: 5px 11px;
+    color: #304b3c;
+  }
+  .surfaces button[aria-pressed="true"] { background: #fffdf6; border-color: #ccd7c7; font-weight: 680; }
+  .motion-option { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .motion-option input { margin: 0; width: 15px; height: 15px; accent-color: #305b4c; }
+  .stage {
+    position: relative;
+    isolation: isolate;
+    flex: 1;
+    min-height: 301px;
+    margin: 0 10px;
+    padding: 29px 25px 85px;
+    overflow: hidden;
+    border: 1px solid #d9ddcf;
+    border-radius: 12px;
+    background: radial-gradient(ellipse at 100% 5%, #e8eddd 0%, transparent 69%), #f6f3ea;
+    color: #213a2e;
+    --stage-ring: #244d3e;
+  }
+  .stage[data-theme="dark"], .proof-surface[data-theme="dark"] {
+    color: #f5efdd;
+    background: #182b25;
+    --stage-ring: #e8e6ba;
+  }
+  .stage[data-theme="dark"] .launcher,
+  .proof-surface[data-theme="dark"] .tile { --rim: #ccd8b4; --tile-cast: #0006; }
+  .guest-page { max-width: 370px; margin: 0 auto; }
+  .guest-name { font-size: .72rem; font-weight: 740; letter-spacing: .12em; text-transform: uppercase; }
+  .guest-title { margin-top: 18px; font-size: clamp(2rem, 4vw, 2.65rem); line-height: 1.03; letter-spacing: -.045em; }
+  .guest-page > p:last-of-type { margin-top: 11px; font-size: .9rem; line-height: 1.65; }
+  .stay-times {
+    display: flex;
+    gap: 30px;
+    margin: 17px 0 0;
+    border-top: 1px solid currentColor;
+    padding-top: 13px;
+    font-size: .79rem;
+  }
+  .stay-times dd { margin: 4px 0 0; font-weight: 740; }
+  .launcher { position: absolute; right: 12px; bottom: 12px; }
+  .launcher:focus-visible { outline-color: var(--stage-ring); }
+  .chat {
+    position: absolute;
+    z-index: 1;
+    right: 12px;
+    bottom: 76px;
+    width: min(300px, 100% - 24px);
+    max-height: calc(100% - 88px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #658275;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #faf8ee;
+    color: #213a2e;
+    box-shadow: 0 10px 35px #0f271f38;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid #d9e2d2;
+    background: #eff2e8;
+  }
+  .chat-title { flex: 1; font-size: 1.28rem; }
+  .header-mascot { display: none; --tile-size: 38px; }
+  .close {
+    display: grid;
+    place-items: center;
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid #acbeb0;
+    border-radius: 8px;
+    background: #faf8ee;
+    color: #213a2e;
+    font-size: 1.25rem;
+  }
+  .chat-body { padding: 11px 12px 13px; overflow: auto; font-size: .82rem; line-height: 1.5; }
+  .chat-body p + p, .chat-body p + button, .chat-body p + div { margin-top: 9px; }
+  .chat-action {
+    padding: 6px 9px;
+    border: 1px solid #31614f;
+    border-radius: 7px;
+    background: #eff4e9;
+    color: #204537;
+    font-size: .78rem;
+    font-weight: 700;
+  }
+  .reply-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stage-caption { padding: 10px 19px 13px; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+  .stage-caption strong { color: #264438; }
+  .proof { margin-top: 18px; padding: 20px 19px 17px; }
+  .proof h2 { margin-bottom: 13px; }
+  .proof-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .proof-surface {
+    padding: 12px 10px 13px;
+    border-radius: 10px;
+    border: 1px solid #d9ddcf;
+    background: #f6f3ea;
+  }
+  .proof-surface h3 { margin: 0 0 10px 4px; font-size: .76rem; font-weight: 700; }
+  .proof-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .proof-row figure { display: grid; justify-items: center; gap: 5px; font-size: .72rem; }
+  .proof-row .tile { --tile-size: 32px; }
+  .preview[data-reduced="false"] .live .lift,
+  .preview[data-reduced="false"] .live .head,
+  .preview[data-reduced="false"] .live .expression,
+  .preview[data-reduced="false"] .live .thinking-dots,
+  .preview[data-reduced="false"] .live::before {
+    transition-duration: 140ms;
+    transition-timing-function: var(--out);
+  }
+  .preview[data-reduced="false"] .live :is(.lift, .head) { transition-property: transform; }
+  .preview[data-reduced="false"] .live :is(.expression, .thinking-dots),
+  .preview[data-reduced="false"] .live::before { transition-property: opacity; }
+  .preview[data-reduced="false"] .live[data-pose="hover"] :is(.lift, .head, .expression),
+  .preview[data-reduced="false"] .live[data-pose="hover"]::before { transition-duration: 160ms; }
+  .preview[data-reduced="false"] .live[data-pose="natural"] .float { animation: float 6000ms ease-in-out infinite; }
+  .preview[data-reduced="false"] .live[data-pose="active"] .active-face { transition-duration: 100ms; }
+  .preview[data-reduced="false"] .live[data-pose="active"] svg[data-nod] .head { animation: nod 240ms var(--out); }
+  .preview[data-reduced="false"] .live svg[data-blink] .natural-eyes { animation: blink 200ms var(--out); transform-origin: 56px 61.5px; }
+  .preview[data-reduced="false"] .live[data-pose="typing"] .thinking-dots circle { animation: dot 1200ms ease-in-out infinite; }
+  .preview[data-reduced="false"] .live[data-pose="typing"] .thinking-dots circle:nth-child(2) { animation-delay: 200ms; }
+  .preview[data-reduced="false"] .live[data-pose="typing"] .thinking-dots circle:nth-child(3) { animation-delay: 400ms; }
+  .preview[data-reduced="true"] .live[data-pose="hover"] :is(.lift, .head) { transform: none; }
+  .preview[data-paused="true"] .live * { animation-play-state: paused !important; }
+  .preview[data-reduced="false"] .launcher { transition: transform 120ms var(--out); }
+  .preview[data-reduced="false"] .launcher:active { transform: scale(.97); transition-duration: 100ms; }
+  @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @keyframes blink { 55% { transform: scaleY(.16); } }
+  @keyframes nod {
+    0%, 100% { transform: none; }
+    48% { transform: translateY(2px) rotate(5deg) scaleY(.96); }
+  }
+  @keyframes dot { 0%, 100% { opacity: .58; } 30% { opacity: 1; } 66% { opacity: .58; } }
+  @media (max-width: 870px) {
+    main { width: min(100% - 34px, 700px); padding-top: 28px; }
+    .workspace { grid-template-columns: minmax(0, 1fr); }
+    .stage { min-height: 331px; }
+  }
+  @media (max-width: 640px), (hover: none) and (max-width: 1024px) and (max-height: 500px) {
+    .stage[data-open="true"] .launcher { display: none; }
+    .header-mascot { display: grid; }
+    .chat { right: 0; bottom: 0; width: 100%; height: 100%; max-height: none; border-radius: 0; border: 0; }
+    .chat-header { padding: 12px; }
+  }
+  @media (max-width: 530px) {
+    .intro { padding-top: 20px; }
+    .guest-title { font-size: 2.4rem; }
+    .sheet .tile { --tile-size: 92px; }
+    .sheet-grid figure { min-height: 144px; padding: 18px 5px; }
+    .proof-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (forced-colors: active) {
+    .tile { forced-color-adjust: none; border-color: ButtonText; }
+    .launcher:focus-visible { outline-color: Highlight; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header class="intro">
+    <h1>Concierge genie</h1>
+    <p>Four expressions for a boutique hotel’s chat launcher.</p>
+  </header>
+  <div class="workspace">
+    <section class="sheet panel" aria-labelledby="sheet-title">
+      <header class="sheet-header"><h2 class="section-title" id="sheet-title">Expression sheet</h2></header>
+      <div class="sheet-grid">
+        <figure><div class="tile" data-art="natural"></div><figcaption>Natural</figcaption></figure>
+        <figure><div class="tile" data-art="hover"></div><figcaption>Hover</figcaption></figure>
+        <figure><div class="tile" data-art="active"></div><figcaption>Active</figcaption></figure>
+        <figure><div class="tile" data-art="typing"></div><figcaption>Typing</figcaption></figure>
+      </div>
+    </section>
+    <section class="preview panel" aria-labelledby="preview-title" data-reduced="true">
+      <header class="preview-header">
+        <h2 class="section-title" id="preview-title">Live launcher</h2>
+        <div class="preview-controls">
+          <div class="surfaces" role="group" aria-label="Preview surface">
+            <button type="button" data-set-theme="light" aria-pressed="true">Light</button>
+            <button type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
+          </div>
+          <label class="motion-option"><input id="reduce-motion" type="checkbox"> Reduced motion</label>
+        </div>
+      </header>
+      <div class="stage" data-theme="light" data-open="false">
+        <article class="guest-page">
+          <p class="guest-name">The Fern House</p>
+          <h3 class="guest-title">Before your stay</h3>
+          <p>Arriving early? Leave your bags with the front desk and take a stroll through the neighborhood while we prepare your room.</p>
+          <dl class="stay-times">
+            <div><dt>Check-in</dt><dd>3:00 PM</dd></div>
+            <div><dt>Check-out</dt><dd>11:00 AM</dd></div>
+          </dl>
+        </article>
+        <button type="button" class="launcher tile live" id="launcher" aria-label="Open concierge chat" aria-controls="demo-chat" aria-expanded="false"></button>
+        <section class="chat" id="demo-chat" aria-labelledby="chat-title" hidden>
+          <header class="chat-header">
+            <div class="header-mascot tile live"></div>
+            <h3 class="chat-title" id="chat-title">Concierge</h3>
+            <button type="button" class="close" aria-label="Close concierge chat"><span aria-hidden="true">×</span></button>
+          </header>
+          <div class="chat-body">
+            <p>Welcome to The Fern House. How can I help?</p>
+            <button type="button" class="chat-action" id="send">Ask about check-in</button>
+            <p id="reply" role="status"></p>
+            <div class="reply-actions" hidden>
+              <button type="button" class="chat-action" id="cancel">Cancel reply</button>
+              <button type="button" class="chat-action" id="error">Simulate error</button>
+            </div>
+          </div>
+        </section>
+      </div>
+      <p class="stage-caption"><strong id="state-label">Natural</strong> · Open chat and ask about check-in to see a reply in progress.</p>
+    </section>
+  </div>
+  <section class="proof panel" aria-labelledby="proof-title">
+    <h2 class="section-title" id="proof-title">Actual size · 32 px</h2>
+    <div class="proof-grid">
+      <div class="proof-surface" data-theme="light">
+        <h3>Light surface</h3>
+        <div class="proof-row"></div>
+      </div>
+      <div class="proof-surface" data-theme="dark">
+        <h3>Dark surface</h3>
+        <div class="proof-row"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<template id="genie-art">
+<svg xmlns="http://www.w3.org/2000/svg" width="112" height="112" viewBox="0 0 112 112" data-pose="natural" role="img" aria-label="Boutique concierge genie, Natural">
+  <style>
+    .expression, .thinking-dots { opacity: 0; }
+    [data-pose="natural"] .natural-face,
+    [data-pose="hover"] .hover-face,
+    [data-pose="active"] .active-face,
+    [data-pose="typing"] .typing-face,
+    [data-pose="typing"] .thinking-dots { opacity: 1; }
+    .head { transform-origin: 56px 67px; }
+    [data-pose="hover"] .head { transform: rotate(5deg); }
+    [data-pose="hover"][data-direction="left"] .head { transform: rotate(-5deg); }
+    [data-pose="hover"][data-direction="center"] .head { transform: none; }
+    [data-pose="hover"] .lift { transform: translateY(-4px); }
+  </style>
+  <defs>
+    <linearGradient id="coat" x1="0" y1="0" x2="0.78" y2="1">
+      <stop stop-color="#a8c1a1"/>
+      <stop offset=".41" stop-color="#4c876d"/>
+      <stop offset=".76" stop-color="#295748"/>
+      <stop offset="1" stop-color="#163f36"/>
+    </linearGradient>
+    <linearGradient id="coat-light" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#9fc49d" stop-opacity=".88"/>
+      <stop offset="1" stop-color="#699c83" stop-opacity=".04"/>
+    </linearGradient>
+    <linearGradient id="wisp" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#71a18a" stop-opacity="0"/>
+      <stop offset=".63" stop-color="#89bda5"/>
+      <stop offset="1" stop-color="#c2dbc5"/>
+    </linearGradient>
+    <radialGradient id="skin" cx=".33" cy=".19" r=".82" fx=".29" fy=".14">
+      <stop stop-color="#fffdf0"/>
+      <stop offset=".45" stop-color="#fcf0d7"/>
+      <stop offset=".77" stop-color="#e5d7b2"/>
+      <stop offset="1" stop-color="#aabe9e"/>
+    </radialGradient>
+    <linearGradient id="skin-edge" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#fff9df"/>
+      <stop offset=".61" stop-color="#fff1d1" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#425f4c" stop-opacity=".47"/>
+    </linearGradient>
+    <radialGradient id="cheek">
+      <stop stop-color="#c97758" stop-opacity=".27"/>
+      <stop offset="1" stop-color="#c97758" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2=".85" y2="1">
+      <stop stop-color="#87ae96"/>
+      <stop offset=".18" stop-color="#548269"/>
+      <stop offset=".58" stop-color="#254e41"/>
+      <stop offset="1" stop-color="#183a31"/>
+    </linearGradient>
+    <linearGradient id="cap-top" x1="0" y1="0" x2=".88" y2=".8">
+      <stop stop-color="#c9d4b0"/>
+      <stop offset=".51" stop-color="#7aa58b"/>
+      <stop offset="1" stop-color="#527e6b"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2=".92" y2=".22">
+      <stop stop-color="#c38f55"/>
+      <stop offset=".26" stop-color="#fff0bb"/>
+      <stop offset=".49" stop-color="#e9bd78"/>
+      <stop offset=".77" stop-color="#a97742"/>
+      <stop offset="1" stop-color="#efd39b"/>
+    </linearGradient>
+  </defs>
+  <g class="lift">
+    <g class="float">
+      <g id="shoulders">
+        <path d="M55 74C73 73 90 76 95 84c4 7-1 13-7 15 3 2 5 5 3 8-6-5-11-5-18-5H42c-18 0-29-6-28-14 1-10 18-14 41-14Z" fill="url(#coat)" stroke="#254e41" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M15 89c4 7 14 11 30 11h27c8 0 14 1 19 7 2-3 0-6-3-8 5-2 8-5 8-9-4 5-12 7-24 7H50c-16 0-28-2-35-8Z" fill="url(#wisp)" opacity=".9"/>
+        <path d="M15 89c2-9 17-15 39-15 18 0 32 3 39 9-8-3-20-4-35-3-19 0-34 3-43 9Z" fill="url(#coat-light)"/>
+        <path d="M28 85c4 9 15 12 28 12s24-3 28-12" fill="none" stroke="#17382f" stroke-opacity=".44" stroke-width="2" stroke-linecap="round"/>
+        <path d="M31 84c6 7 15 10 25 10s19-3 25-10" fill="none" stroke="#b6d1ac" stroke-opacity=".43" stroke-width="1.2" stroke-linecap="round"/>
+      </g>
+      <g class="head">
+        <g id="portrait">
+          <path d="M56 28c14 0 25 4 31 12 5 6 7 14 7 22-1 10-6 17-14 21-7 4-15 7-24 7s-17-3-24-7c-8-4-13-11-14-21 0-8 2-16 7-22 6-8 17-12 31-12Z" fill="url(#skin)" stroke="#344e3f" stroke-width="1.7"/>
+          <path d="M56 30c13 0 25 4 31 12 4 6 6 12 5 19-1 10-6 16-14 20-6 4-14 7-22 7s-16-3-22-7c-8-4-13-10-14-20-1-7 1-13 5-19 6-8 18-12 31-12Z" fill="none" stroke="url(#skin-edge)" stroke-width="2"/>
+          <ellipse cx="31" cy="68" rx="10.5" ry="8" fill="url(#cheek)"/>
+          <ellipse cx="81" cy="68" rx="10.5" ry="8" fill="url(#cheek)"/>
+          <path d="M28 45c5-5 12-8 18-9" fill="none" stroke="#fffcef" stroke-opacity=".65" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+        <g id="concierge-cap">
+          <path d="M30 24c-2-6 3-13 10-15 12-3 25-2 37 0 7 1 11 5 10 12l-2 10c-1 6-6 8-12 8-10-2-21-3-32-1-6 0-9-2-10-7Z" fill="url(#cap)" stroke="#183a31" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M32 22c0-5 4-10 9-11 12-3 24-2 35 0 5 1 8 3 9 6-3-1-6-2-10-2-14-2-26-1-35 2-4 1-6 3-8 5Z" fill="url(#cap-top)"/>
+          <path d="M31 27c11-5 35-6 55 0l-1 5c-1 2-3 3-5 3-18-4-35-3-47 1-1-1-2-3-2-5Z" fill="url(#brass)" stroke="#775436" stroke-width=".8"/>
+          <path d="M34 29c13-4 33-4 47 0" fill="none" stroke="#fff0c4" stroke-opacity=".7" stroke-linecap="round" stroke-width="1"/>
+        </g>
+        <g class="expression natural-face" fill="#26382e" stroke="#26382e" stroke-linecap="round">
+          <path d="M34 51q6-3.5 12-.5m20 0q6-3 12 .5" fill="none" stroke-width="3.2"/>
+          <g class="natural-eyes" stroke="none">
+            <ellipse cx="40" cy="61.5" rx="4.4" ry="5.5"/>
+            <ellipse cx="72" cy="61.5" rx="4.4" ry="5.5"/>
+            <circle cx="38.7" cy="59.7" r="1.15" fill="#fffef3"/>
+            <circle cx="70.7" cy="59.7" r="1.15" fill="#fffef3"/>
+          </g>
+          <path d="M49.5 74q6.5 5.5 13 0" fill="none" stroke-width="3.3"/>
+        </g>
+        <g class="expression hover-face" fill="#26382e" stroke="#26382e" stroke-linecap="round">
+          <path d="M30.5 47q8.5-8.5 17-4.5m17.5 8.3q7.5-3 15 1.2" fill="none" stroke-width="3.5"/>
+          <g stroke="none">
+            <ellipse cx="40" cy="59.5" rx="6.8" ry="8" fill="#fffdf0"/>
+            <ellipse cx="72" cy="59.5" rx="6.8" ry="8" fill="#fffdf0"/>
+            <g class="hover-pupils" transform="translate(2 -1)">
+              <ellipse cx="40" cy="61" rx="4.3" ry="5.5"/>
+              <ellipse cx="72" cy="61" rx="4.3" ry="5.5"/>
+              <circle cx="38.7" cy="59.3" r="1.15" fill="#fffef3"/>
+              <circle cx="70.7" cy="59.3" r="1.15" fill="#fffef3"/>
+            </g>
+          </g>
+          <path d="M49 74q7 7 14.5-.5" fill="none" stroke-width="3.3"/>
+        </g>
+        <g class="expression active-face" fill="#26382e" stroke="#26382e" stroke-linecap="round">
+          <path d="M32.5 47.5q7.5-5 15 0m17 0q7.5-5 15 0" fill="none" stroke-width="3.3"/>
+          <g stroke="none">
+            <ellipse cx="40" cy="60" rx="4.9" ry="6.2"/>
+            <ellipse cx="72" cy="60" rx="4.9" ry="6.2"/>
+            <circle cx="38.5" cy="58" r="1.25" fill="#fffef3"/>
+            <circle cx="70.5" cy="58" r="1.25" fill="#fffef3"/>
+          </g>
+          <path d="M45.5 72q10.5 4 21 0c-1.5 6.5-5.5 10-10.5 10S47 78.5 45.5 72Z" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M50 74.6q6 1.5 12 0c-2 1.5-4 2.4-6 2.4s-4-.9-6-2.4Z" fill="#fff3d7" stroke="none"/>
+        </g>
+        <g class="expression typing-face" fill="#26382e" stroke="#26382e" stroke-linecap="round">
+          <path d="M33 51q5-1 13 1.5m19-4.5q7-6 14-.5" fill="none" stroke-width="3.3"/>
+          <g stroke="none">
+            <ellipse cx="40" cy="61.5" rx="6" ry="5.8" fill="#fffdf0"/>
+            <ellipse cx="72" cy="61.5" rx="6" ry="5.8" fill="#fffdf0"/>
+            <ellipse cx="42" cy="59.7" rx="4.3" ry="4.8"/>
+            <ellipse cx="74" cy="59.7" rx="4.3" ry="4.8"/>
+            <circle cx="40.7" cy="58.2" r="1.1" fill="#fffef3"/>
+            <circle cx="72.7" cy="58.2" r="1.1" fill="#fffef3"/>
+          </g>
+          <path d="M50 76h12" fill="none" stroke-width="3.4"/>
+        </g>
+      </g>
+      <g class="thinking-dots">
+        <rect x="41" y="90" width="30" height="10" rx="5" fill="#1b3c33"/>
+        <g fill="#fff0d3">
+          <circle cx="47" cy="95" r="2.65"/>
+          <circle cx="56" cy="95" r="2.65"/>
+          <circle cx="65" cy="95" r="2.65"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
+</template>
+<script>
+  const stateNames = { natural: "Natural", hover: "Hover", active: "Active", typing: "Typing" };
+  const master = document.querySelector("#genie-art").content.querySelector("svg");
+  let nextArtId = 0;
+
+  function mountGenie(target, pose) {
+    const svg = master.cloneNode(true);
+    const prefix = "genie-" + nextArtId++ + "-";
+    for (const layer of svg.querySelectorAll("[id]")) layer.id = prefix + layer.id;
+    for (const shape of svg.querySelectorAll('[fill^="url("], [stroke^="url("]')) {
+      for (const paint of ["fill", "stroke"]) {
+        const value = shape.getAttribute(paint);
+        if (value?.startsWith("url(#")) shape.setAttribute(paint, value.replace("url(#", "url(#" + prefix));
+      }
+    }
+    svg.removeAttribute("role");
+    svg.removeAttribute("aria-label");
+    svg.setAttribute("aria-hidden", "true");
+    svg.setAttribute("focusable", "false");
+    svg.dataset.pose = pose;
+    target.dataset.pose = pose;
+    target.append(svg);
+    return svg;
+  }
+
+  for (const swatch of document.querySelectorAll("[data-art]")) mountGenie(swatch, swatch.dataset.art);
+  for (const row of document.querySelectorAll(".proof-row")) {
+    for (const [pose, label] of Object.entries(stateNames)) {
+      const figure = document.createElement("figure");
+      const tile = document.createElement("div");
+      const caption = document.createElement("figcaption");
+      tile.className = "tile";
+      caption.textContent = label;
+      figure.append(tile, caption);
+      row.append(figure);
+      mountGenie(tile, pose);
+    }
+  }
+
+  const preview = document.querySelector(".preview");
+  const stage = document.querySelector(".stage");
+  const launcher = document.querySelector("#launcher");
+  const chat = document.querySelector("#demo-chat");
+  const headSlot = document.querySelector(".header-mascot");
+  const closeChat = document.querySelector(".close");
+  const send = document.querySelector("#send");
+  const reply = document.querySelector("#reply");
+  const replyActions = document.querySelector(".reply-actions");
+  const stateLabel = document.querySelector("#state-label");
+  const motionControl = document.querySelector("#reduce-motion");
+  const systemMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const mobileLayout = matchMedia("(max-width: 640px), (hover: none) and (max-width: 1024px) and (max-height: 500px)");
+  const finePointer = matchMedia("(any-hover: hover) and (any-pointer: fine)");
+  const svg = mountGenie(launcher, "natural");
+  const pupils = svg.querySelector(".hover-pupils");
+  let open = false;
+  let pending = false;
+  let pointerOver = false;
+  let pointerDirection = 0;
+  let lastPointer;
+  let manualMotion = false;
+  let blinkTimer;
+  let replyTimer;
+
+  function scheduleBlink() {
+    clearTimeout(blinkTimer);
+    if (svg.dataset.pose !== "natural" || motionControl.checked || document.hidden) return;
+    blinkTimer = setTimeout(() => {
+      svg.dataset.blink = "";
+      scheduleBlink();
+    }, 7000 + Math.random() * 3000);
+  }
+
+  function renderPose() {
+    const host = open && mobileLayout.matches ? headSlot : launcher;
+    if (svg.parentElement !== host) host.append(svg);
+    const focused = launcher.matches(":focus-visible");
+    const pose = open ? (pending ? "typing" : "active") : (pointerOver || focused ? "hover" : "natural");
+    const previousPose = svg.dataset.pose;
+    svg.dataset.pose = pose;
+    host.dataset.pose = pose;
+    if (host !== launcher) launcher.dataset.pose = pose;
+    stateLabel.textContent = stateNames[pose];
+    if (previousPose !== pose) {
+      delete svg.dataset.blink;
+      delete svg.dataset.nod;
+      scheduleBlink();
+    }
+  }
+
+  function setMotion() {
+    if (!manualMotion) motionControl.checked = systemMotion.matches;
+    preview.dataset.reduced = String(motionControl.checked);
+    delete svg.dataset.blink;
+    delete svg.dataset.nod;
+    updateGaze();
+    scheduleBlink();
+  }
+
+  function updateGaze() {
+    const event = lastPointer;
+    if (event && pointerOver && !open && !motionControl.checked) {
+      const rect = launcher.getBoundingClientRect();
+      const x = (event.clientX - rect.left) / rect.width * 2 - 1;
+      const y = (event.clientY - rect.top) / rect.height * 2 - 1;
+      if (Math.abs(x) > .12) pointerDirection = Math.sign(x);
+      pupils.style.transform = "translate(" + (x * 2.3).toFixed(2) + "px," + (y * 1.6).toFixed(2) + "px)";
+      svg.dataset.direction = pointerDirection < 0 ? "left" : "right";
+      return;
+    }
+    pointerDirection = 0;
+    pupils.style.transform = "translate(0, 0)";
+    svg.dataset.direction = "center";
+  }
+
+  function openChat(acknowledge) {
+    open = true;
+    chat.hidden = false;
+    stage.dataset.open = "true";
+    launcher.setAttribute("aria-expanded", "true");
+    launcher.setAttribute("aria-label", "Close concierge chat");
+    updateGaze();
+    renderPose();
+    if (acknowledge && !pending && !motionControl.checked) svg.dataset.nod = "";
+    closeChat.focus();
+  }
+
+  function hideChat() {
+    open = false;
+    chat.hidden = true;
+    stage.dataset.open = "false";
+    launcher.setAttribute("aria-expanded", "false");
+    launcher.setAttribute("aria-label", "Open concierge chat");
+    launcher.focus();
+    updateGaze();
+    renderPose();
+  }
+
+  function finishReply(message, restoreFocus = false) {
+    clearTimeout(replyTimer);
+    pending = false;
+    reply.textContent = message;
+    send.hidden = false;
+    replyActions.hidden = true;
+    renderPose();
+    if (open && restoreFocus) send.focus();
+  }
+
+  launcher.addEventListener("pointerenter", event => {
+    if (!finePointer.matches || event.pointerType === "touch") return;
+    pointerOver = true;
+    lastPointer = event;
+    updateGaze();
+    renderPose();
+  });
+  launcher.addEventListener("pointermove", event => {
+    if (!pointerOver || event.pointerType === "touch") return;
+    lastPointer = event;
+    updateGaze();
+  });
+  launcher.addEventListener("pointerleave", () => {
+    pointerOver = false;
+    lastPointer = undefined;
+    updateGaze();
+    renderPose();
+  });
+  launcher.addEventListener("pointerdown", event => {
+    if (event.pointerType !== "touch") return;
+    pointerOver = false;
+    lastPointer = undefined;
+    updateGaze();
+    renderPose();
+  });
+  launcher.addEventListener("focus", renderPose);
+  launcher.addEventListener("blur", () => queueMicrotask(renderPose));
+  launcher.addEventListener("click", event => open ? hideChat() : openChat(event.detail > 0));
+  closeChat.addEventListener("click", hideChat);
+  stage.addEventListener("keydown", event => {
+    if (event.key === "Escape" && open) {
+      event.preventDefault();
+      hideChat();
+    }
+  });
+  send.addEventListener("click", () => {
+    pending = true;
+    reply.textContent = "Preparing your reply…";
+    replyActions.hidden = false;
+    document.querySelector("#cancel").focus();
+    send.hidden = true;
+    renderPose();
+    replyTimer = setTimeout(() => {
+      finishReply("Check-in starts at 3:00 PM. You’re welcome to leave your bags with us if you arrive early.", replyActions.contains(document.activeElement));
+    }, 3200);
+  });
+  document.querySelector("#cancel").addEventListener("click", () => finishReply("Reply canceled.", true));
+  document.querySelector("#error").addEventListener("click", () => finishReply("We couldn’t prepare a reply. Try asking again.", true));
+
+  for (const button of document.querySelectorAll("[data-set-theme]")) {
+    button.addEventListener("click", () => {
+      stage.dataset.theme = button.dataset.setTheme;
+      for (const option of document.querySelectorAll("[data-set-theme]")) option.setAttribute("aria-pressed", String(option === button));
+    });
+  }
+
+  motionControl.addEventListener("change", () => {
+    manualMotion = true;
+    setMotion();
+  });
+  systemMotion.addEventListener("change", setMotion);
+  mobileLayout.addEventListener("change", () => {
+    pointerOver = false;
+    lastPointer = undefined;
+    updateGaze();
+    renderPose();
+  });
+  document.addEventListener("visibilitychange", () => {
+    preview.dataset.paused = String(document.hidden);
+    delete svg.dataset.blink;
+    scheduleBlink();
+  });
+  svg.addEventListener("animationend", event => {
+    if (event.animationName === "blink") delete svg.dataset.blink;
+    if (event.animationName === "nod") delete svg.dataset.nod;
+  });
+
+  setMotion();
+</script>
+</body>
+</html>
