@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Echo · Launcher concept</title>
+  <style>
+    :root {
+      color-scheme: light;
+      background: #e8eeea;
+      color: #142f30;
+      font: 400 1rem/1.5 "DM Sans", system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; }
+    h1, h2, p, figure { margin: 0; }
+    img { display: block; }
+    a { color: inherit; text-underline-offset: .2em; }
+    a:focus-visible { outline: 2px solid #286d63; outline-offset: 5px; }
+
+    .board {
+      width: min(1200px, 100%);
+      margin-inline: auto;
+      padding: clamp(20px, 4.2vw, 52px);
+      background: #f6f8f4;
+    }
+    .board-title {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 4px .62rem;
+      margin-bottom: 24px;
+      font-size: clamp(38px, 6vw, 72px);
+      line-height: 1;
+      letter-spacing: -.07em;
+      font-weight: 650;
+    }
+    .board-title span {
+      color: #49645e;
+      font-size: clamp(14px, 2vw, 24px);
+      letter-spacing: -.02em;
+      font-weight: 500;
+    }
+    .board-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+      gap: 22px;
+    }
+
+    .hero {
+      display: grid;
+      place-items: center;
+      padding: clamp(22px, 5vw, 62px);
+      background: radial-gradient(ellipse at 26% 12%, #37777a, #174e52 52%, #123439);
+      border: 1px solid #27575b;
+      border-radius: 26px;
+    }
+    .proof {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .proof h2 {
+      color: #24423f;
+      font-size: 1rem;
+      font-weight: 650;
+      letter-spacing: -.015em;
+    }
+    .sample {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 208px;
+      gap: 23px;
+      padding: 20px 22px;
+      border: 1px solid #d4ded5;
+      border-radius: 20px;
+      color: #173535;
+      background: radial-gradient(ellipse at 6% 0%, #fcf9ef, #eef2ea 78%);
+    }
+    .sample.dark {
+      border-color: #294446;
+      color: #edf4eb;
+      background: radial-gradient(ellipse at 0 0, #263c3b, #17292c 80%);
+    }
+    .hotel .name {
+      color: #536e63;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .105em;
+      text-transform: uppercase;
+    }
+    .dark .hotel .name { color: #a6c5b8; }
+    .hotel .heading {
+      margin-top: 7px;
+      font-family: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+      font-size: clamp(26px, 3vw, 34px);
+      line-height: 1.05;
+      letter-spacing: -.035em;
+    }
+    .samples {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 15px;
+    }
+    .surface-label {
+      font-size: 12px;
+      color: #536e63;
+    }
+    .dark .surface-label { color: #b0c9c0; }
+    .sizes {
+      display: flex;
+      align-items: end;
+      gap: 22px;
+    }
+    .sizes figure {
+      display: grid;
+      justify-items: center;
+      gap: 6px;
+    }
+    .sizes figcaption {
+      font-size: 11px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .review-controls {
+      width: min(1200px, 100%);
+      margin-inline: auto;
+      padding: 16px clamp(20px, 4.2vw, 52px) 23px;
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px 20px;
+      color: #294f48;
+      font-size: 14px;
+    }
+    .review-controls a { font-weight: 650; }
+
+    .first-look { display: none; }
+    .review-mode { background: #f6f7ef; }
+    .review-mode :is(.board, .review-controls) { display: none; }
+    .review-mode .first-look {
+      display: grid;
+      align-content: start;
+      min-height: 100dvh;
+      padding: clamp(35px, 10vh, 100px) 24px 100px;
+      background: radial-gradient(ellipse at 76% 8%, #e2ece2, transparent 59%);
+    }
+    .first-look .hotel {
+      width: min(680px, 100%);
+      margin-inline: auto;
+    }
+    .first-look .heading { font-size: clamp(42px, 8vw, 86px); }
+    .first-look .description { max-width: 42ch; margin-top: 20px; color: #405b53; }
+    .first-look .launcher {
+      position: fixed;
+      right: max(24px, env(safe-area-inset-right));
+      bottom: max(24px, env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 820px) {
+      .board-layout { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="echo-motion.css">
+  <script defer src="echo-motion.js"></script>
+  <script>
+    if (new URLSearchParams(location.search).has("first-look")) {
+      document.documentElement.classList.add("review-mode");
+      document.title = "The Fern House";
+    }
+  </script>
+</head>
+<body>
+  <main class="board" aria-labelledby="board-title">
+    <h1 class="board-title" id="board-title">Echo, <span>the hotel chat assistant</span></h1>
+    <div class="board-layout">
+      <div class="hero">
+        <div class="motion-preview" data-echo="preview" role="img" aria-label="Animated Echo"></div>
+      </div>
+      <section class="proof" aria-labelledby="sizes-title">
+        <h2 id="sizes-title">Launcher animations</h2>
+        <div class="motion-controls" role="group" aria-label="Echo poses">
+          <button type="button" data-pose="natural" aria-pressed="true">Natural</button>
+          <button type="button" data-pose="hover" aria-pressed="false">Hover</button>
+          <button type="button" data-pose="active" aria-pressed="false">Active</button>
+          <button type="button" data-pose="focus" aria-pressed="false">Focus</button>
+          <button type="button" data-pose="typing" aria-pressed="false">Typing</button>
+          <button type="button" data-pose="sleeping" aria-pressed="false">Sleeping</button>
+          <button type="button" data-pose="looking" aria-pressed="false">Looking Cursor</button>
+        </div>
+        <div class="motion-controls motion-actions">
+          <button type="button" id="replay">Replay</button>
+          <label><input type="checkbox" data-reduced-motion> Reduced motion</label>
+        </div>
+        <p class="motion-description" id="motion-description" aria-live="polite"></p>
+        <article class="sample" aria-label="Light hotel page">
+          <div class="hotel">
+            <p class="name">The Fern House</p>
+            <p class="heading">Plan your stay</p>
+          </div>
+          <div class="samples">
+            <p class="surface-label">Light surface</p>
+            <div class="sizes">
+              <figure><div class="echo-56" data-echo="preview" aria-hidden="true"></div><figcaption>56 px</figcaption></figure>
+              <figure><div class="echo-32" data-echo="preview" aria-hidden="true"></div><figcaption>32 px</figcaption></figure>
+            </div>
+          </div>
+        </article>
+        <article class="sample dark" aria-label="Dark hotel page">
+          <div class="hotel">
+            <p class="name">The Fern House</p>
+            <p class="heading">Plan your stay</p>
+          </div>
+          <div class="samples">
+            <p class="surface-label">Dark surface</p>
+            <div class="sizes">
+              <figure><div class="echo-56" data-echo="preview" aria-hidden="true"></div><figcaption>56 px</figcaption></figure>
+              <figure><div class="echo-32" data-echo="preview" aria-hidden="true"></div><figcaption>32 px</figcaption></figure>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+  </main>
+  <aside class="review-controls" aria-label="Team review">
+    <a href="Echo.html?first-look" id="live-launcher-link">Open live launcher</a>
+    <p>Before revealing the caption, ask “What would you expect to happen if you tapped this?”</p>
+  </aside>
+  <main class="first-look">
+    <article class="hotel">
+      <p class="name">The Fern House</p>
+      <h1 class="heading">Plan your stay</h1>
+      <p class="description">Settle in, explore the neighbourhood, and make yourself at home.</p>
+    </article>
+    <button class="launcher echo-launcher" type="button" data-echo="live" aria-label="Open hotel chat" aria-controls="echo-chat" aria-expanded="false"></button>
+    <section class="demo-chat" id="echo-chat" aria-labelledby="echo-chat-title" hidden>
+      <header>
+        <div class="echo-38" data-echo="live" aria-hidden="true"></div>
+        <h2 id="echo-chat-title">Concierge</h2>
+        <button type="button" class="reply-button" id="close-chat">Close</button>
+      </header>
+      <button type="button" class="reply-button" id="send-question">Ask about check-in</button>
+      <p id="demo-reply" role="status">Welcome to The Fern House.</p>
+      <div id="pending-actions" hidden>
+        <button type="button" class="reply-button" id="cancel-reply">Cancel reply</button>
+        <button type="button" class="reply-button" id="fail-reply">Simulate error</button>
+      </div>
+    </section>
+  </main>
+  <template id="echo-art">
+    <svg class="echo-art" data-state="natural" viewBox="0 0 1254 1254" width="1254" height="1254" aria-hidden="true" focusable="false">
+      <defs>
+        <image id="texture" href="echo-launcher.png" width="1254" height="1254"/>
+        <path id="silhouette" d="M648 166C818 165 945 213 1025 329C1075 400 1113 516 1113 623C1114 774 1054 897 963 943C932 961 894 971 889 984C881 1018 910 1057 917 1083C923 1114 907 1126 878 1125C830 1124 792 1095 757 1063C723 1032 704 1019 672 1022C532 1030 397 1027 290 959C174 887 117 762 117 627C114 485 162 369 254 294C355 209 486 167 648 166Z"/>
+        <clipPath id="body-clip"><use href="#silhouette"/></clipPath>
+        <clipPath id="left-eye">
+          <path d="M360 639C398 636 416 674 411 721C408 766 386 811 349 815C311 818 289 777 293 728C296 682 324 641 360 639Z"/>
+        </clipPath>
+        <clipPath id="right-eye">
+          <path d="M650 652C689 652 711 691 706 741C704 789 681 834 644 839C602 842 578 800 581 749C584 703 610 652 650 652Z"/>
+        </clipPath>
+        <filter id="matte-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="10"/></filter>
+        <filter id="glass-soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="16"/></filter>
+        <mask id="matte-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254">
+          <g fill="white" filter="url(#matte-soft)">
+            <use href="#silhouette" stroke="white" stroke-width="70"/>
+            <ellipse cx="695" cy="1115" rx="278" ry="46"/>
+          </g>
+        </mask>
+        <mask id="glass-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1254" height="1254">
+          <g fill="white" filter="url(#glass-soft)">
+            <ellipse cx="353" cy="726" rx="109" ry="142"/>
+            <ellipse cx="645" cy="748" rx="111" ry="145"/>
+          </g>
+        </mask>
+        <radialGradient id="tile-paint" cx=".11" cy=".16" r=".96">
+          <stop stop-color="#17616e"/>
+          <stop offset=".56" stop-color="#084955"/>
+          <stop offset="1" stop-color="#01313a"/>
+        </radialGradient>
+        <linearGradient id="glass-left" x1=".6" y1="0" x2=".3" y2="1">
+          <stop stop-color="#afdcd2"/>
+          <stop offset=".54" stop-color="#a8d8ce"/>
+          <stop offset="1" stop-color="#9cd0c8"/>
+        </linearGradient>
+        <linearGradient id="glass-right" x1=".45" y1="0" x2=".6" y2="1">
+          <stop stop-color="#a6d8cf"/>
+          <stop offset=".53" stop-color="#9fd6cb"/>
+          <stop offset="1" stop-color="#94cfc4"/>
+        </linearGradient>
+        <radialGradient id="shadow">
+          <stop stop-color="#00191d" stop-opacity=".72"/>
+          <stop offset="1" stop-color="#00191d" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <use href="#texture"/>
+      <path d="M0 0h1254v1254H0Z" fill="url(#tile-paint)" mask="url(#matte-mask)"/>
+      <ellipse class="echo-shadow" cx="690" cy="1120" rx="325" ry="36" fill="url(#shadow)"/>
+      <g class="echo-body">
+        <use href="#texture" clip-path="url(#body-clip)"/>
+        <g mask="url(#glass-mask)">
+          <path d="M188 550h317v365H188Z" fill="url(#glass-left)"/>
+          <path d="M505 550h320v378H505Z" fill="url(#glass-right)"/>
+        </g>
+        <g class="echo-gaze">
+          <g class="echo-eyelid" style="transform-origin: 353px 727px"><use href="#texture" clip-path="url(#left-eye)"/></g>
+          <g class="echo-eyelid" style="transform-origin: 645px 746px"><use href="#texture" clip-path="url(#right-eye)"/></g>
+        </g>
+        <path class="echo-sleep-line" d="M302 737q45 38 95-11m193 19q49 46 102-7" stroke="#10444a" stroke-width="24" stroke-linecap="round" fill="none"/>
+      </g>
+      <g class="echo-dots" fill="#ddfff3">
+        <circle cx="485" cy="1110" r="23"/>
+        <circle cx="572" cy="1110" r="23"/>
+        <circle cx="659" cy="1110" r="23"/>
+      </g>
+      <rect class="echo-ring" x="-31" y="-25" width="1316" height="1308" rx="324" fill="none" stroke="#b7f2de" stroke-width="4" vector-effect="non-scaling-stroke"/>
+    </svg>
+  </template>
+</body>
+</html>
