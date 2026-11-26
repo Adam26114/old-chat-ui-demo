@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Headset bot · Hotel concierge</title>
+  <script>
+    if (new URLSearchParams(location.search).has("live")) {
+      document.documentElement.classList.add("live-mode");
+      document.title = "The Fern House · Concierge demo";
+    }
+  </script>
+  <link rel="stylesheet" href="headset-motion.css">
+  <link rel="stylesheet" href="preview.css">
+  <script defer src="headset-motion.js"></script>
+  <script defer src="preview.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <span>Hotel concierge</span>
+    <a class="view-link review-view" href="?live">Try live launcher <span aria-hidden="true">↗</span></a>
+    <a class="view-link live-view" href="index.html"><span aria-hidden="true">←</span> Back to animations</a>
+  </header>
+
+  <main class="review-view board">
+    <section class="feature" aria-labelledby="board-title">
+      <h1 id="board-title">Headset bot</h1>
+      <div class="stage">
+        <div id="hero-bot"></div>
+      </div>
+      <div class="state-caption" id="state-caption" aria-live="polite">
+        <strong id="state-name">Natural</strong>
+        <span id="state-message">I’m here if you need me.</span>
+      </div>
+      <div class="actions">
+        <button type="button" id="replay" class="action">Replay</button>
+        <label class="motion-setting"><input type="checkbox" data-motion-setting> Reduced motion</label>
+      </div>
+      <a class="asset-link" href="headset-bot.svg" download>Download animated SVG <span aria-hidden="true">↓</span></a>
+    </section>
+
+    <section class="proof" aria-labelledby="proof-title">
+      <h2 id="proof-title">Launcher states</h2>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">State</th>
+            <th scope="col">Light · 56 / 32 px</th>
+            <th scope="col">Dark · 56 / 32 px</th>
+          </tr>
+        </thead>
+        <tbody id="states"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <main class="live-view guest">
+    <article class="guest-story">
+      <h1>The Fern House</h1>
+      <p>Plan your stay, explore the neighbourhood, or ask the concierge about check-in.</p>
+    </article>
+    <button type="button" class="launcher" id="launcher" aria-label="Open hotel chat" aria-controls="chat" aria-expanded="false"></button>
+    <section id="chat" class="chat" aria-labelledby="chat-title" hidden>
+      <header class="chat-header">
+        <div id="chat-bot" class="chat-bot"></div>
+        <h2 id="chat-title">Concierge</h2>
+        <button class="action" id="close-chat" type="button">Close</button>
+      </header>
+      <p id="reply" role="status">Welcome to The Fern House.</p>
+      <div class="chat-actions">
+        <button class="action" id="question" type="button">Ask about check-in</button>
+        <button class="action" id="cancel" type="button" hidden>Cancel reply</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- The SVG in this template is the markup from headset-bot.svg. It also works when this preview is opened directly from disk. -->
+  <template id="bot-art">
+    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 2171 1417" version="1.1" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;" class="headset-bot" role="img" aria-label="Green concierge bot wearing a headset">
+      <defs>
+        <linearGradient id="headset-shell" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(504,-320,320,504,0,320)">
+          <stop offset="0" style="stop-color:rgb(15,201,130);stop-opacity:1" />
+          <stop offset="1" style="stop-color:rgb(11,246,92);stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <style>
+        @media (prefers-reduced-motion: no-preference) {
+          .headset-bot:not([data-state]) .bot-head {
+            transform-box: view-box;
+            animation: headset-idle-float 6s ease-in-out infinite;
+          }
+          .headset-bot:not([data-state]) .bot-eye {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: headset-idle-blink 8.5s ease-in-out infinite;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .headset-bot:not([data-state]) .bot-artboard { overflow: visible; }
+        }
+        @keyframes headset-idle-float {
+          50% { transform: translateY(-1.37%); }
+        }
+        @keyframes headset-idle-blink {
+          0%, 97.65%, 100% { transform: scaleY(1); }
+          98.7% { transform: scaleY(.14); }
+        }
+      </style>
+      <g class="bot-lift">
+        <g class="bot-head">
+          <svg class="bot-artboard" width="2171" height="1417" overflow="hidden">
+            <g transform="matrix(1,0,0,1,-114.583333,-290.20098)">
+              <g transform="matrix(2.082534,0,0,2.082534,115,357.373904)">
+                <g transform="matrix(0.480184,0,0,0.480184,521,307.875183)">
+                  <g transform="matrix(1,0,0,1,-1085.416667,-708.333333)">
+                    <g>
+                      <g transform="matrix(3.803903,0,0,3.803903,94.5,199.417786)">
+                        <g>
+                          <path d="M500.5,83C511.814,83 521,92.186 521,103.5L521,152.5C521,163.814 511.814,173 500.5,173C489.186,173 480,163.814 480,152.5L480,103.5C480,92.186 489.186,83 500.5,83Z" style="fill:rgb(21,132,89);" />
+                          <g transform="matrix(-1,0,0,1.199805,544.006644,-25.574991)">
+                            <path d="M272.003,0.321C346.844,-0.003 444.947,-0.219 452.444,-0.219L452.357,-1.705C426.865,-12.033 394.49,-14.973 358.007,-17C353.761,-17.25 316.948,-17.453 272.003,-17.609C227.059,-17.453 190.246,-17.25 186,-17C149.517,-14.973 117.142,-12.033 91.65,-1.705C79.411,3.255 68.758,9.917 60,19C36,43 42.007,74.904 40.007,125.904L47.737,125.809C48.737,83.809 58,55 78,35C102,12 138,4 187,1C190.502,0.75 227.058,0.516 272.003,0.321Z" style="fill:rgb(21,132,89);fill-rule:nonzero;" />
+                          </g>
+                          <g transform="matrix(1,0,0,1,8.5,7.886637)">
+                            <path d="M52,0L438,0C474,0 504,29 504,65L504,320L51,320C23,320 0,297 0,270L0,51C0,23 23,0 52,0Z" style="fill-rule:nonzero;" fill="url(#headset-shell)" />
+                          </g>
+                          <path d="M205,28L437,28C458,28 476,46 476,67L476,236L204,236C184,236 168,220 168,200L168,65C168,45 184,28 205,28Z" style="fill:rgb(249,250,255);fill-rule:nonzero;" />
+                          <g transform="matrix(1,0,0,1.199805,0,-25.574991)">
+                            <path d="M272.003,0.321C227.058,0.516 190.502,0.75 187,1C138,4 102,12 78,35C58,55 49,86 48,128L24,127C26,76 36,43 60,19C68.758,9.917 79.411,3.255 91.65,-1.705C117.142,-12.033 149.517,-14.973 186,-17C190.246,-17.25 227.059,-17.453 272.003,-17.609C316.948,-17.453 353.761,-17.25 358.007,-17C394.49,-14.973 426.865,-12.033 452.357,-1.705L452.444,-0.219C444.947,-0.219 346.844,-0.003 272.003,0.321Z" style="fill:rgb(21,132,89);fill-rule:nonzero;" />
+                          </g>
+                          <g transform="matrix(0.262888,0,0,0.262888,-24.843102,-52.424645)">
+                            <path d="M596,1172.344L271.729,1172.344C245.369,1172.344 224,1150.975 224,1124.615C224,1070.097 224,988.344 224,988.344L312,988.344L312,1096.158C312,1114.313 326.718,1129.031 344.873,1129.031C419.641,1129.031 596,1129.031 596,1129.031L596,1172.344Z" style="fill:rgb(20,102,73);" />
+                          </g>
+                          <g transform="matrix(0.994522,0.104528,-0.104528,0.994522,16.300073,-3.023925)">
+                            <g transform="matrix(1.236808,-0.129994,0.142848,1.35911,-21.525252,-68.198899)">
+                              <path d="M38,100C56.765,100 72,113.864 72,130.94L72,178.06C72,195.136 56.765,209 38,209C19.235,209 4,195.136 4,178.06L4,130.94C4,113.864 19.235,100 38,100Z" style="fill:rgb(21,132,89);" />
+                            </g>
+                            <g transform="matrix(1.236808,-0.129994,0.129994,1.236808,-25.393047,-40.698604)">
+                              <path d="M36,109C48.694,109 59,119.306 59,132L59,175C59,187.694 48.694,198 36,198C23.306,198 13,187.694 13,175L13,132C13,119.306 23.306,109 36,109Z" style="fill:rgb(20,102,73);" />
+                            </g>
+                          </g>
+                          <g transform="matrix(1,0,0,1,13.422672,35.31444)">
+                            <path d="M140.5,202C147.399,202 153,207.601 153,214.5C153,221.399 147.399,227 140.5,227L123.5,227C116.601,227 111,221.399 111,214.5C111,207.601 116.601,202 123.5,202L140.5,202Z" style="fill:rgb(20,94,67);" />
+                          </g>
+                          <g class="bot-gaze">
+                            <path d="M283.046,90C289.092,90 294,94.908 294,100.954L294,164.046C294,170.092 289.092,175 283.046,175L248.954,175C242.908,175 238,170.092 238,164.046L238,100.954C238,94.908 242.908,90 248.954,90L283.046,90Z" style="fill:rgb(8,10,9);" class="bot-eye" />
+                            <path d="M395.046,90C401.092,90 406,94.908 406,100.954L406,164.046C406,170.092 401.092,175 395.046,175L360.954,175C354.908,175 350,170.092 350,164.046L350,100.954C350,94.908 354.908,90 360.954,90L395.046,90Z" style="fill:rgb(8,10,9);" class="bot-eye" />
+                          </g>
+                          <g opacity="0" class="bot-lids">
+                            <path d="M291,128C296.519,128 301,132.481 301,138C301,143.519 296.519,148 291,148L241,148C235.481,148 231,143.519 231,138C231,132.481 235.481,128 241,128L291,128Z" style="fill:rgb(8,10,9);" />
+                            <path d="M403,128C408.519,128 413,132.481 413,138C413,143.519 408.519,148 403,148L353,148C347.481,148 343,143.519 343,138C343,132.481 347.481,128 353,128L403,128Z" style="fill:rgb(8,10,9);" />
+                          </g>
+                          <g opacity="0" class="bot-dots">
+                            <circle cx="282" cy="198" r="11" style="fill:rgb(20,102,73);" />
+                            <circle cx="322" cy="198" r="11" style="fill:rgb(20,102,73);" />
+                            <circle cx="362" cy="198" r="11" style="fill:rgb(20,102,73);" />
+                          </g>
+                        </g>
+                      </g>
+                    </g>
+                  </g>
+                </g>
+              </g>
+            </g>
+          </svg>
+        </g>
+      </g>
+    </svg>
+  </template>
+</body>
+</html>

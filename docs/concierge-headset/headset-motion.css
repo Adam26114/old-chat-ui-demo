@@ -1,0 +1,119 @@
+.headset-bot {
+  --bot-out: cubic-bezier(.23, 1, .32, 1);
+  --bot-in-out: cubic-bezier(.77, 0, .175, 1);
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.headset-bot :is(.bot-eye, .bot-lids) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.bot-head, .bot-lift {
+  transform-box: view-box;
+  transform-origin: center;
+}
+
+.bot-lift {
+  transition: transform 160ms var(--bot-out);
+}
+
+.bot-gaze {
+  transition: transform 140ms var(--bot-out);
+}
+
+.bot-eye {
+  transition: transform 160ms var(--bot-out), opacity 120ms;
+}
+
+.bot-lids, .bot-dots {
+  transition: opacity 120ms;
+}
+
+:where(.headset-bot[data-state="natural"]) .bot-head {
+  animation: bot-float 6000ms ease-in-out infinite;
+}
+
+:where(.headset-bot[data-state="hover"]) .bot-lift {
+  transform: translateY(calc(-1 * var(--hover-lift, 4.1%)));
+}
+
+:where(.headset-bot[data-state="hover"]) .bot-gaze {
+  transform: translate(4px, -12px);
+}
+
+:where(.headset-bot[data-state="looking"]) .bot-gaze {
+  transform: translate(20px, 2px);
+}
+
+:where(.headset-bot[data-state="hover"]) .bot-eye {
+  transform: scaleY(1.09);
+}
+
+:where(.headset-bot[data-state="active"]) .bot-eye {
+  transform: translateY(-7px) scale(1.06, .85);
+}
+
+:where(.headset-bot[data-state="focus"]) .bot-eye {
+  transform: translateY(-6px) scale(1.18, 1.1);
+  transition-duration: 120ms;
+}
+
+:where(.headset-bot[data-state="typing"]) .bot-eye {
+  transform: translateY(-21px) scaleY(.9);
+}
+
+:where(.headset-bot[data-state="typing"]) .bot-dots,
+:where(.headset-bot[data-state="sleeping"]) .bot-lids {
+  opacity: 1;
+}
+
+:where(.headset-bot[data-state="typing"]) .bot-dots circle {
+  animation: bot-dot 1200ms ease-in-out infinite;
+}
+
+.bot-dots circle:nth-child(2) { animation-delay: 160ms; }
+.bot-dots circle:nth-child(3) { animation-delay: 320ms; }
+
+:where(.headset-bot[data-state="sleeping"]) .bot-eye {
+  opacity: 0;
+  transform: scaleY(.2);
+  transition-duration: 420ms;
+}
+
+:where(.headset-bot[data-state="sleeping"]) :is(.bot-lift, .bot-lids) {
+  transition-duration: 420ms;
+}
+
+:where(.headset-bot[data-state="sleeping"]) .bot-lift {
+  transform: translateY(var(--sleep-drop, 2.74%));
+}
+
+@keyframes bot-float {
+  50% { transform: translateY(calc(-1 * var(--idle-float, 1.37%))); }
+}
+
+@keyframes bot-dot {
+  0%, 65%, 100% { opacity: .58; }
+  28% { opacity: 1; }
+}
+
+.headset-bot[data-motion="reduce"] * {
+  animation: none;
+  transition: none;
+}
+
+.headset-bot[data-paused] * {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .headset-bot:not([data-motion="full"]) * {
+    animation: none;
+    transition: none;
+  }
+}
